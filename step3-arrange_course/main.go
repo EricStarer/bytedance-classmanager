@@ -31,21 +31,17 @@ func connect() error {
 
 //创建课程函数
 func course_create(c *gin.Context) {
-	name := c.PostForm("Name")
-	cap, e := strconv.Atoi(c.PostForm("Cap"))
-	if e != nil {
-		panic(e)
-	}
-	//db.AutoMigrate(&types.CreateCourseRequest{})
-	t1 := course{NAME: name, CAP: cap}
-	db.Create(&t1)
+	var u course
+	c.ShouldBindJSON(&u)
+	db.Create(&u)
 	var t2 course
 	db.Last(&t2)
-	fmt.Println("%#v\n", t2)
-  //返回值，有疑问，types.go中CreateCourseResponse中Data
+	fmt.Printf("%#v\n", t2)
 	c.JSON(http.StatusOK, gin.H{
-		"Code":     types.OK,
-		"courseId": t2.ID,
+		"Code": types.OK,
+		"Data": gin.H{
+			"CourseID": t2.ID,
+		},
 	})
 }
 //获取课程信息
