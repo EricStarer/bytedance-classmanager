@@ -48,7 +48,33 @@ func course_create(c *gin.Context) {
 		"courseId": t2.ID,
 	})
 }
-
+//获取课程信息
+func course_get(c *gin.Context) {
+	var u course
+	c.ShouldBindJSON(&u) //别用错方法，找了半天bug
+	//fmt.Printf("u=%#v\n", u)
+	id, _ := strconv.Atoi(u.ID)
+	db.First(&u, id)
+	if u.NAME == "" {
+		c.JSON(http.StatusOK, gin.H{
+			"Code": types.CourseNotExisted,
+			"Data": gin.H{
+				"CourseID":  u.ID,
+				"Name":      u.NAME,
+				"TeacherID": u.TeacherId,
+			},
+		})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"Code": types.OK,
+		"Data": gin.H{
+			"CourseID":  u.ID,
+			"Name":      u.NAME,
+			"TeacherID": u.TeacherId,
+		},
+	})
+}
 func main() {
 	e := connect()
 	//连接失败
@@ -60,7 +86,7 @@ func main() {
 	g := r.Group("/api/v1")
 	// 排课
 	g.POST("/course/create", course_create)
-	g.GET("/course/get")
+	g.GET("/course/get",course_get)
 
 	g.POST("/teacher/bind_course")
 	g.POST("/teacher/unbind_course")
