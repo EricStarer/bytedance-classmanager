@@ -1,12 +1,12 @@
 package main
 
 import (
+	"bytedance-classmanager/src/types"
 	"fmt"
 	"github.com/gin-gonic/gin"
 	"github.com/jinzhu/gorm"
 	_ "github.com/jinzhu/gorm/dialects/mysql"
 	"net/http"
-	"project02/types"
 	"strconv"
 )
 
@@ -44,6 +44,7 @@ func course_create(c *gin.Context) {
 		},
 	})
 }
+
 //获取课程信息
 func course_get(c *gin.Context) {
 	var u course
@@ -82,7 +83,7 @@ func main() {
 	g := r.Group("/api/v1")
 	// 排课
 	g.POST("/course/create", course_create)
-	g.GET("/course/get",course_get)
+	g.GET("/course/get", course_get)
 
 	g.POST("/teacher/bind_course")
 	g.POST("/teacher/unbind_course")
