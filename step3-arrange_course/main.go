@@ -19,6 +19,10 @@ type course struct {
 
 var err error
 var db *gorm.DB //数据库连接
+//var st []bool
+var st map[string]string
+var TeacherCourseRelationShip map[string][]string
+var res map[string]string
 
 //连接数据库函数
 func connect() error {
@@ -120,6 +124,35 @@ func teacher_course_get(c *gin.Context) {
 	resp.Data.CourseList = ans
 	c.JSON(http.StatusOK, resp)
 }
+func find(x string) bool {
+	t := TeacherCourseRelationShip[x]
+	for _, s := range t {
+		if st[s] == "" {
+			st[s] = "1"
+			if res[s] == "" || find(s) {
+				res[s] = x
+				return true
+			}
+		}
+	}
+	return false
+}
+
+//排课求解器
+func schedule(c *gin.Context) {
+	var u types.ScheduleCourseRequest
+	c.ShouldBindJSON(&u)
+	TeacherCourseRelationShip = u.TeacherCourseRelationShip
+	res = make(map[string]string)
+	for k, _ := range TeacherCourseRelationShip {
+		find(k)
+	}
+	resp := new(types.ScheduleCourseResponse)
+	resp.Code = types.OK
+	resp.Data = res
+	c.JSON(http.StatusOK, resp)
+
+}
 func main() {
 	e := connect()
 	//连接失败
@@ -136,6 +169,6 @@ func main() {
 	g.POST("/teacher/bind_course", Bind_Course)
 	g.POST("/teacher/unbind_course", UnBind_course)
 	g.GET("/teacher/get_course", teacher_course_get)
-	g.POST("/course/schedule")
+	g.POST("/course/schedule", schedule)
 	r.Run()
 }
