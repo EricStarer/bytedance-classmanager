@@ -129,7 +129,7 @@ func find(x string) bool {
 	for _, s := range t {
 		if st[s] == "" {
 			st[s] = "1"
-			if res[s] == "" || find(s) {
+			if res[s] == "" || find(res[s]) {
 				res[s] = x
 				return true
 			}
@@ -139,12 +139,15 @@ func find(x string) bool {
 }
 
 //排课求解器
-func schedule(c *gin.Context) {
+func schedule(c *gin.Context) { //匈牙利算法
 	var u types.ScheduleCourseRequest
 	c.ShouldBindJSON(&u)
 	TeacherCourseRelationShip = u.TeacherCourseRelationShip
 	res = make(map[string]string)
 	for k, _ := range TeacherCourseRelationShip {
+		for k, _ := range res {
+			delete(res, k)
+		}
 		find(k)
 	}
 	resp := new(types.ScheduleCourseResponse)
