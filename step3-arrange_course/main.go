@@ -103,13 +103,22 @@ func UnBind_course(c *gin.Context) {
 
 //查询老师下的所有课程（未完成)，CourseList []*TCourse什么意思？
 func teacher_course_get(c *gin.Context) {
-	var u course
-	var res []course
-	c.ShouldBindJSON(&u)
-	db.Where("teacher_id=?", u.TeacherId).Find(&res)
-	c.JSON(http.StatusOK, gin.H{
-		"Code": types.OK,
-	})
+	var u course                                     //接收request中的数据
+	var res []course                                 //根据teacher_id得到记录的结果集
+	c.ShouldBindJSON(&u)                             //参数绑定
+	db.Where("teacher_id=?", u.TeacherId).Find(&res) //查询
+	resp := new(types.GetTeacherCourseResponse)      //response结构体
+	resp.Code = types.OK
+	arrlen := len(res)                                //记录的个数
+	ans := make([]*types.TCourse, arrlen, arrlen+100) //cap开大一点
+	for i := 0; i < arrlen; i++ {                     //将u中的三个字段转移到ans中
+		ans[i] = new(types.TCourse) //指针要先初始化！！！
+		ans[i].TeacherID = res[i].TeacherId
+		ans[i].CourseID = res[i].ID
+		ans[i].Name = res[i].NAME
+	}
+	resp.Data.CourseList = ans
+	c.JSON(http.StatusOK, resp)
 }
 func main() {
 	e := connect()
