@@ -2,13 +2,24 @@ package router
 
 import (
 	"Register/controller"
+	"Register/types"
+	"encoding/gob"
+	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
 )
 
 func RegisterRouter(r *gin.Engine) {
+
 	g := r.Group("/api/v1")
 
+	gob.Register(types.Teacher)
+	gob.Register(types.Admin)
+	gob.Register(types.Student)
+
+	g.Use(sessions.Sessions(types.SessionName, types.Store))
+
 	// 成员管理
+
 	g.POST("/member/create", controller.MemberCreatePost)
 	g.GET("/member", controller.MemberGetOne)
 	g.GET("/member/list", controller.MemberGetList)
@@ -17,9 +28,9 @@ func RegisterRouter(r *gin.Engine) {
 
 	// 登录
 
-	g.POST("/auth/login", controller.Login)
-	g.POST("/auth/logout", controller.Logout)
-	g.GET("/auth/whoami", controller.Whoami)
+	g.POST("/auth/login", controller.MemberLogIn)
+	g.POST("/auth/logout", controller.MemberLogOut)
+	g.GET("/auth/whoami", controller.WhoAmI)
 
 	// 排课
 	g.POST("/course/create")
