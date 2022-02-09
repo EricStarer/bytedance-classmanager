@@ -22,6 +22,14 @@ func checkParams(params request.CreateMemberRequest) bool {
 		fmt.Println("用户名长度不正确")
 		return false
 	}
+	//检查username是否只有大小写
+	for _, val := range params.Username {
+		if (val >= 'a' && val <= 'z') || (val >= 'A' && val <= 'Z') {
+			continue
+		}
+		fmt.Println("用户名只能包含大小写")
+		return false
+	}
 	if len(params.Password) < 8 || len(params.Password) > 20 {
 		fmt.Println("密码长度不正确")
 		return false
@@ -63,12 +71,14 @@ func checkPermission(c *gin.Context) bool {
 //创建成员
 func MemberCreatePost(c *gin.Context) {
 	var res response.CreateMemberResponse
+	var createMember request.CreateMemberRequest
+
 	if !checkPermission(c) {
 		res.Code = types.PermDenied
 		c.JSON(http.StatusOK, res)
 		return
 	}
-	var createMember request.CreateMemberRequest
+
 	jsons := utils.GetParams(c, createMember)
 	json.Unmarshal(jsons, &createMember)
 
@@ -164,13 +174,16 @@ func MemberGetOne(c *gin.Context) {
 
 //查询许多成员
 func MemberGetList(c *gin.Context) {
-	var requestParams request.GetMemberListRequest
+	//防止不传值,所以给了默认值
+	var requestParams = request.GetMemberListRequest{Limit: -1, Offset: -1}
 	jsons := utils.GetParams(c, requestParams)
 	json.Unmarshal(jsons, &requestParams)
 	limit := requestParams.Limit
 	offset := requestParams.Offset
 	var res response.GetMemberListResponse
 	var data []types.TMember
+	fmt.Println(limit)
+	fmt.Println(offset)
 	if limit < 0 || offset < 0 { //offset和limit小于0会出错
 		res.Code = types.ParamInvalid
 		c.JSON(http.StatusOK, res)
@@ -212,30 +225,10 @@ func MemberUpdate(c *gin.Context) {
 	jsons := utils.GetParams(c, paramRequest)
 	json.Unmarshal(jsons, &paramRequest)
 	var res response.UpdateMemberResponse
-
-	fmt.Println("上")
-	fmt.Println(paramRequest.UserID)
-	fmt.Println(paramRequest.Nickname)
-	fmt.Println("下")
 	//update要记住nickname的规定,在这里进行判断
-	id, err := strconv.Atoi(paramRequest.UserID)
-	if id < 0 || err != nil {
+	if _, err := strconv.Atoi(paramRequest.UserID); err != nil || len(paramRequest.UserID) < 1 || len(paramRequest.Nickname) < 4 || len(paramRequest.Nickname) > 20 {
 		res.Code = types.ParamInvalid
 		c.JSON(http.StatusOK, res)
-		fmt.Println("nickname不合法")
-		return
-	}
-	if len(paramRequest.UserID) < 1 {
-		res.Code = types.ParamInvalid
-		c.JSON(http.StatusOK, res)
-		fmt.Println("nickname不存在")
-		return
-	}
-
-	if len(paramRequest.Nickname) < 4 || len(paramRequest.Nickname) > 20 {
-		res.Code = types.ParamInvalid
-		c.JSON(http.StatusOK, res)
-		fmt.Println("nickname长度不合法")
 		return
 	}
 	var generateId types.GenerateId
