@@ -1,5 +1,9 @@
 package types
 
+import (
+	"github.com/gin-contrib/sessions/cookie"
+)
+
 // 说明：
 // 1. 所提到的「位数」均以字节长度为准
 // 2. 所有的 ID 均为 int64（以 string 方式表现）
@@ -37,37 +41,38 @@ const (
 type TMember struct {
 	UserID   string `gorm:"uniqueIndex"`
 	Nickname string `gorm:"column:nick_name"`
-	Username string	`gorm:"column:user_name"`
+	Username string `gorm:"column:user_name;unique"`
 	UserType UserType
 }
 
 type TAdmin struct {
-	ID uint64 `gorm:"primaryKey"`
-	TMember TMember `gorm:"embedded"`
-	IsDel int `gorm:"default:0"`
+	ID       uint64  `gorm:"primaryKey"`
+	TMember  TMember `gorm:"embedded"`
+	IsDel    int     `gorm:"default:0"`
 	Password string
 }
 
 type TStudent struct {
-	ID uint64 `gorm:"primaryKey"`
-	TMember TMember `gorm:"embedded"`
-	IsDel int  `gorm:"default:0"`
-	Password string
+	ID             uint64  `gorm:"primaryKey"`
+	TMember        TMember `gorm:"embedded"`
+	IsDel          int     `gorm:"default:0"`
+	Password       string
 	CourseRecordId string
 }
 
 type TTeacher struct {
-	ID uint64 `gorm:"primaryKey"`
-	TMember TMember `gorm:"embedded"`
-	IsDel int `gorm:"default:0"`
-	Password string
+	ID            uint64  `gorm:"primaryKey"`
+	TMember       TMember `gorm:"embedded"`
+	IsDel         int     `gorm:"default:0"`
+	Password      string
 	TeachRecordId string
 }
 
 type GenerateId struct {
-	ID uint64 `gorm:"primaryKey"`
+	ID       uint64 `gorm:"primaryKey"`
+	UserName string `gorm:"column:user_name;unique"`
 	UserType UserType
-	IsDel int `gorm:"default:0"`
+	IsDel    int `gorm:"default:0"`
 }
 
 func (GenerateId) TableName() string {
@@ -77,8 +82,6 @@ func (GenerateId) TableName() string {
 type ResponseMeta struct {
 	Code ErrNo
 }
-
-
 
 type TCourse struct {
 	CourseID  string
@@ -93,11 +96,13 @@ type TCourse struct {
 type UserType int
 
 const (
-	Admin   UserType = 1
-	Student UserType = 2
-	Teacher UserType = 3
+	Admin       UserType = 1
+	Student     UserType = 2
+	Teacher     UserType = 3
+	SessionName string   = "camp-session"
 )
+
+var Store = cookie.NewStore([]byte("secret"))
 
 // 系统内置管理员账号
 // 账号名：JudgeAdmin 密码：JudgePassword2022
-
