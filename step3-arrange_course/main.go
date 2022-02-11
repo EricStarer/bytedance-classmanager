@@ -37,6 +37,7 @@ func connect() error {
 //创建课程函数
 func course_create(c *gin.Context) {
 	var u course
+<<<<<<< HEAD
 	c.ShouldBindJSON(&u)
 	db.Create(&u)
 	var t2 course
@@ -57,24 +58,36 @@ func course_get(c *gin.Context) {
 	id, _ := strconv.Atoi(u.ID) //将id转为整型，因为数据库中id字段为整型
 	db.First(&u, id)            //查询
 	if u.NAME == "" {           //如果没查询到就返回Errno,CourseNotExisted
-		c.JSON(http.StatusOK, gin.H{
-			"Code": types.CourseNotExisted,
-			"Data": gin.H{
-				"CourseID":  u.ID,
-				"Name":      u.NAME,
-				"TeacherID": u.TeacherId,
-			},
-		})
+		//c.JSON(http.StatusOK, gin.H{
+		//	"Code": types.CourseNotExisted,
+		//	"Data": gin.H{
+		//		"CourseID":  u.ID,
+		//		"Name":      u.NAME,
+		//		"TeacherID": u.TeacherId,
+		//	},
+		//})
+		resp := new(types.GetCourseResponse)
+		resp.Code = types.CourseNotExisted
+		resp.Data.CourseID = u.ID
+		resp.Data.Name = u.NAME
+		resp.Data.TeacherID = u.TeacherId
+		c.JSON(http.StatusOK, resp)
 		return
 	} //已查询到返回OK
-	c.JSON(http.StatusOK, gin.H{
-		"Code": types.OK,
-		"Data": gin.H{
-			"CourseID":  u.ID,
-			"Name":      u.NAME,
-			"TeacherID": u.TeacherId,
-		},
-	})
+	//c.JSON(http.StatusOK, gin.H{
+	//	"Code": types.OK,
+	//	"Data": gin.H{
+	//		"CourseID":  u.ID,
+	//		"Name":      u.NAME,
+	//		"TeacherID": u.TeacherId,
+	//	},
+	//})
+	resp := new(types.GetCourseResponse)
+	resp.Code = types.OK
+	resp.Data.CourseID = u.ID
+	resp.Data.Name = u.NAME
+	resp.Data.TeacherID = u.TeacherId
+	c.JSON(http.StatusOK, resp)
 }
 
 //绑定课程
