@@ -39,12 +39,16 @@ func course_create(c *gin.Context) {
 	c.ShouldBindJSON(&u) //gin框架参数绑定，传入的指针
 	db.Create(&u)        //创建记录
 	db.Last(&u)          //db主键id是自增的,因此查询最新插入的记录,从而获取id值
-	c.JSON(http.StatusOK, gin.H{ //返回值
-		"Code": types.OK,
-		"Data": gin.H{
-			"CourseID": u.ID,
-		},
-	})
+	//c.JSON(http.StatusOK, gin.H{ //返回值
+	//	//	"Code": types.OK,
+	//	//	"Data": gin.H{
+	//	//		"CourseID": u.ID,
+	//	//	},
+	//	//})
+	resp := new(types.CreateCourseResponse)
+	resp.Code = types.OK
+	resp.Data.CourseID = u.ID
+	c.JSON(http.StatusOK, resp)
 }
 
 //获取课程信息
@@ -54,24 +58,36 @@ func course_get(c *gin.Context) {
 	id, _ := strconv.Atoi(u.ID) //将id转为整型，因为数据库中id字段为整型
 	db.First(&u, id)            //查询
 	if u.NAME == "" {           //如果没查询到就返回Errno,CourseNotExisted
-		c.JSON(http.StatusOK, gin.H{
-			"Code": types.CourseNotExisted,
-			"Data": gin.H{
-				"CourseID":  u.ID,
-				"Name":      u.NAME,
-				"TeacherID": u.TeacherId,
-			},
-		})
+		//c.JSON(http.StatusOK, gin.H{
+		//	"Code": types.CourseNotExisted,
+		//	"Data": gin.H{
+		//		"CourseID":  u.ID,
+		//		"Name":      u.NAME,
+		//		"TeacherID": u.TeacherId,
+		//	},
+		//})
+		resp := new(types.GetCourseResponse)
+		resp.Code = types.CourseNotExisted
+		resp.Data.CourseID = u.ID
+		resp.Data.Name = u.NAME
+		resp.Data.TeacherID = u.TeacherId
+		c.JSON(http.StatusOK, resp)
 		return
 	} //已查询到返回OK
-	c.JSON(http.StatusOK, gin.H{
-		"Code": types.OK,
-		"Data": gin.H{
-			"CourseID":  u.ID,
-			"Name":      u.NAME,
-			"TeacherID": u.TeacherId,
-		},
-	})
+	//c.JSON(http.StatusOK, gin.H{
+	//	"Code": types.OK,
+	//	"Data": gin.H{
+	//		"CourseID":  u.ID,
+	//		"Name":      u.NAME,
+	//		"TeacherID": u.TeacherId,
+	//	},
+	//})
+	resp := new(types.GetCourseResponse)
+	resp.Code = types.OK
+	resp.Data.CourseID = u.ID
+	resp.Data.Name = u.NAME
+	resp.Data.TeacherID = u.TeacherId
+	c.JSON(http.StatusOK, resp)
 }
 
 //绑定课程
