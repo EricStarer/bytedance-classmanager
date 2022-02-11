@@ -37,18 +37,15 @@ func connect() error {
 //创建课程函数
 func course_create(c *gin.Context) {
 	var u course
-<<<<<<< HEAD
 	c.ShouldBindJSON(&u)
 	db.Create(&u)
 	var t2 course
 	db.Debug().Last(&t2)
 	fmt.Printf("%#v\n", t2)
-	c.JSON(http.StatusOK, gin.H{
-		"Code": types.OK,
-		"Data": gin.H{
-			"CourseID": t2.ID,
-		},
-	})
+	resp := new(types.CreateCourseResponse)
+	resp.Code = types.OK
+	resp.Data.CourseID = t2.ID
+	c.JSON(http.StatusOK, resp)
 }
 
 //获取课程信息
