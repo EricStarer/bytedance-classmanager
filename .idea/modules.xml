@@ -2,7 +2,7 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/.idea/bytedance_classmanager.iml" filepath="$PROJECT_DIR$/.idea/bytedance_classmanager.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/bytedance-classmanager.iml" filepath="$PROJECT_DIR$/.idea/bytedance-classmanager.iml" />
     </modules>
   </component>
 </project>
