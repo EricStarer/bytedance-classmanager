@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytedance-classmanager/src/types"
+	"fmt"
 	"github.com/gin-gonic/gin"
 	"github.com/jinzhu/gorm"
 	_ "github.com/jinzhu/gorm/dialects/mysql"
@@ -36,13 +37,15 @@ func connect() error {
 //创建课程函数
 func course_create(c *gin.Context) {
 	var u course
-	c.ShouldBindJSON(&u) //gin框架参数绑定，传入的指针
-	db.Create(&u)        //创建记录
-	db.Last(&u)          //db主键id是自增的,因此查询最新插入的记录,从而获取id值
-	c.JSON(http.StatusOK, gin.H{ //返回值
+	c.ShouldBindJSON(&u)
+	db.Create(&u)
+	var t2 course
+	db.Debug().Last(&t2)
+	fmt.Printf("%#v\n", t2)
+	c.JSON(http.StatusOK, gin.H{
 		"Code": types.OK,
 		"Data": gin.H{
-			"CourseID": u.ID,
+			"CourseID": t2.ID,
 		},
 	})
 }
