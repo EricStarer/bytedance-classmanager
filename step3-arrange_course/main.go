@@ -124,6 +124,10 @@ func teacher_course_get(c *gin.Context) {
 	resp.Data.CourseList = ans
 	c.JSON(http.StatusOK, resp)
 }
+
+/*
+匈牙利算法find函数
+*/
 func find(x string) bool {
 	t := TeacherCourseRelationShip[x]
 	for _, s := range t {
@@ -138,24 +142,42 @@ func find(x string) bool {
 	return false
 }
 
-//排课求解器
+/*
+排课求解器
+已处理异常：参数为空值（参数不合法）
+测试数据（json）：
+{"TeacherCourseRelationShip":{"1":["1","2","3"],"2":["1"],"3":["3"]}}
+*/
 func schedule(c *gin.Context) { //匈牙利算法
 	var u types.ScheduleCourseRequest
 	c.ShouldBindJSON(&u)
 	TeacherCourseRelationShip = u.TeacherCourseRelationShip
-	res = make(map[string]string)
-	for k, _ := range TeacherCourseRelationShip {
-		for k, _ := range res {
-			delete(res, k)
-		}
-		find(k)
-	}
+	res, st = make(map[string]string), make(map[string]string)
 	resp := new(types.ScheduleCourseResponse)
 	resp.Code = types.OK
 	resp.Data = res
+	for k, _ := range TeacherCourseRelationShip {
+		if k == "" { //如果teacherid是空值
+			resp.Code = types.ParamInvalid
+			res = make(map[string]string)
+			break
+		}
+		tmp := TeacherCourseRelationShip[k]
+		for _, t := range tmp { //如果课程为空值
+			if t == "" {
+				resp.Code = types.ParamInvalid
+				res = make(map[string]string) //重置结果为空
+				break
+			}
+		}
+		for k, _ := range res {
+			delete(st, k)
+		}
+		find(k)
+	}
 	c.JSON(http.StatusOK, resp)
-
 }
+
 func main() {
 	e := connect()
 	//连接失败
