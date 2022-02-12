@@ -11,8 +11,15 @@ import (
 )
 
 //数据库字段和requeset的请求中（types.go）中相对应
+/*type course struct {
+	ID        string `json:"CourseID"gorm:"primaryKey"`
+	NAME      string `json:"Name"`
+	CAP       int    `json:"Cap"`
+	TeacherId string `json:"TeacherID"`
+}*/
 type course struct {
-	ID        string `json:"CourseID"`
+	CourseID  string `json:"CourseID"`
+	ID        int
 	NAME      string `json:"Name"`
 	CAP       int    `json:"Cap"`
 	TeacherId string `json:"TeacherID"`
@@ -39,22 +46,23 @@ func course_create(c *gin.Context) {
 	var u course
 	c.ShouldBindJSON(&u)
 	db.Create(&u)
-	var t2 course
-	db.Debug().Last(&t2)
-	fmt.Printf("%#v\n", t2)
+	u.CourseID = strconv.Itoa(u.ID)
+	fmt.Printf("%#v\n", u)
+	//db.Debug().Last(&t2)
+	//fmt.Printf("%#v\n", t2)
 	resp := new(types.CreateCourseResponse)
 	resp.Code = types.OK
-	resp.Data.CourseID = t2.ID
+	resp.Data.CourseID = u.CourseID
 	c.JSON(http.StatusOK, resp)
 }
 
 //获取课程信息
 func course_get(c *gin.Context) {
 	var u course
-	c.ShouldBindJSON(&u)        //别用错方法，找了半天bug
-	id, _ := strconv.Atoi(u.ID) //将id转为整型，因为数据库中id字段为整型
-	db.First(&u, id)            //查询
-	if u.NAME == "" {           //如果没查询到就返回Errno,CourseNotExisted
+	c.ShouldBindJSON(&u) //别用错方法，找了半天bug
+	id := u.CourseID     //将id转为整型，因为数据库中id字段为整型
+	db.First(&u, id)     //查询
+	if u.NAME == "" {    //如果没查询到就返回Errno,CourseNotExisted
 		//c.JSON(http.StatusOK, gin.H{
 		//	"Code": types.CourseNotExisted,
 		//	"Data": gin.H{
@@ -65,7 +73,7 @@ func course_get(c *gin.Context) {
 		//})
 		resp := new(types.GetCourseResponse)
 		resp.Code = types.CourseNotExisted
-		resp.Data.CourseID = u.ID
+		resp.Data.CourseID = id
 		resp.Data.Name = u.NAME
 		resp.Data.TeacherID = u.TeacherId
 		c.JSON(http.StatusOK, resp)
@@ -81,7 +89,7 @@ func course_get(c *gin.Context) {
 	//})
 	resp := new(types.GetCourseResponse)
 	resp.Code = types.OK
-	resp.Data.CourseID = u.ID
+	resp.Data.CourseID = id
 	resp.Data.Name = u.NAME
 	resp.Data.TeacherID = u.TeacherId
 	c.JSON(http.StatusOK, resp)
@@ -90,8 +98,8 @@ func course_get(c *gin.Context) {
 //绑定课程
 func Bind_Course(c *gin.Context) {
 	var u course
-	c.ShouldBindJSON(&u)               //gin，参数绑定
-	course_id, _ := strconv.Atoi(u.ID) //id转为数字，理由同上
+	c.ShouldBindJSON(&u)    //gin，参数绑定
+	course_id := u.CourseID //id转为数字，理由同上
 	teacher_id := u.TeacherId
 	db.First(&u, course_id) //先查询对应课程的记录
 	if u.TeacherId == "" {  //该课程还未绑定老师，直接更新记录进行绑定
@@ -107,10 +115,11 @@ func Bind_Course(c *gin.Context) {
 }
 
 //解绑，有疑问:异常情况
+//已完成
 func UnBind_course(c *gin.Context) {
 	var u course
 	c.ShouldBindJSON(&u)
-	course_id, _ := strconv.Atoi(u.ID)
+	course_id := u.CourseID
 	db.First(&u, course_id)                      //查询对应课程
 	db.Debug().Model(&u).Update("TeacherId", "") //仅修改部分,teacher_id字段修改为空值
 	c.JSON(http.StatusOK, gin.H{
@@ -119,6 +128,7 @@ func UnBind_course(c *gin.Context) {
 }
 
 //查询老师下的所有课程（未完成)，CourseList []*TCourse什么意思？
+//已完成
 func teacher_course_get(c *gin.Context) {
 	var u course                                     //接收request中的数据
 	var res []course                                 //根据teacher_id得到记录的结果集
@@ -131,7 +141,7 @@ func teacher_course_get(c *gin.Context) {
 	for i := 0; i < arrlen; i++ {                     //将u中的三个字段转移到ans中
 		ans[i] = new(types.TCourse) //指针要先初始化！！！
 		ans[i].TeacherID = res[i].TeacherId
-		ans[i].CourseID = res[i].ID
+		ans[i].CourseID = strconv.Itoa(res[i].ID)
 		ans[i].Name = res[i].NAME
 	}
 	resp.Data.CourseList = ans
