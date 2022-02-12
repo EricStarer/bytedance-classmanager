@@ -5,5 +5,5 @@ package request
  */
 
 type GetCourseRequest struct {
-	CourseID string
+	CourseID string `json:"course_id"`
 }

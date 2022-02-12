@@ -4,5 +4,5 @@ package request
  	Method： Post
  */
 type ScheduleCourseRequest struct {
-	TeacherCourseRelationShip map[string][]string // key 为 teacherID , val 为老师期望绑定的课程 courseID 数组
+	TeacherCourseRelationShip map[string][]string `json:"teacher_course_relation_ship"`// key 为 teacherID , val 为老师期望绑定的课程 courseID 数组
 }

@@ -41,38 +41,40 @@ const (
 type TMember struct {
 	UserID   string `gorm:"uniqueIndex"`
 	Nickname string `gorm:"column:nick_name"`
-	Username string `gorm:"column:user_name;unique"`
+	Username string	`gorm:"column:user_name;unique"`
 	UserType UserType
 }
 
 type TAdmin struct {
-	ID       uint64  `gorm:"primaryKey"`
-	TMember  TMember `gorm:"embedded"`
-	IsDel    int     `gorm:"default:0"`
+	ID uint64 `gorm:"primaryKey"`
+	TMember TMember `gorm:"embedded"`
+	IsDel int `gorm:"default:0"`
 	Password string
 }
 
 type TStudent struct {
-	ID             uint64  `gorm:"primaryKey"`
-	TMember        TMember `gorm:"embedded"`
-	IsDel          int     `gorm:"default:0"`
-	Password       string
+	ID uint64 `gorm:"primaryKey"`
+	TMember TMember `gorm:"embedded"`
+	IsDel int  `gorm:"default:0"`
+	Password string
 	CourseRecordId string
+	IsRange int `gorm:"default:0;column:is_range"`
 }
 
 type TTeacher struct {
-	ID            uint64  `gorm:"primaryKey"`
-	TMember       TMember `gorm:"embedded"`
-	IsDel         int     `gorm:"default:0"`
-	Password      string
+	ID uint64 `gorm:"primaryKey"`
+	TMember TMember `gorm:"embedded"`
+	IsDel int `gorm:"default:0"`
+	Password string
 	TeachRecordId string
+	IsRange int `gorm:"default:0;column:is_range"`
 }
 
 type GenerateId struct {
-	ID       uint64 `gorm:"primaryKey"`
+	ID uint64 `gorm:"primaryKey"`
 	UserName string `gorm:"column:user_name;unique"`
 	UserType UserType
-	IsDel    int `gorm:"default:0"`
+	IsDel int `gorm:"default:0"`
 }
 
 func (GenerateId) TableName() string {
@@ -84,25 +86,35 @@ type ResponseMeta struct {
 }
 
 type TCourse struct {
-	CourseID  string
-	Name      string
+	CourseID string
+	Name     string
 	TeacherID string
+}
+
+type TCourseCwc struct {
+	ID  uint64 `gorm:"primaryKey"`
+	CourseName      string `gorm:"column:course_name"`
+	Capacity int `gorm:"column:capacity"`
+	TeacherID string `gorm:"column:teacher_id"`
+	Context string `gorm:"column:context"`
+	Feature string `gorm:"column:feature"`
 }
 
 // -----------------------------------
 
 // 成员管理
 
+
 type UserType int
 
 const (
-	Admin       UserType = 1
-	Student     UserType = 2
-	Teacher     UserType = 3
-	SessionName string   = "camp-session"
+	Admin   UserType = 1
+	Student UserType = 2
+	Teacher UserType = 3
+	SessionName string = "camp-session"
 )
-
-var Store = cookie.NewStore([]byte("secret"))
-
+var Store =cookie.NewStore([]byte("secret"))
 // 系统内置管理员账号
 // 账号名：JudgeAdmin 密码：JudgePassword2022
+
+

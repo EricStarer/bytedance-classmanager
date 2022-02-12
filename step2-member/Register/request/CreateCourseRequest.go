@@ -5,6 +5,6 @@ package request
  */
 
 type CreateCourseRequest struct {
-	Name string
-	Cap  int
+	Name string `json:"name"`
+	Cap  int `json:"cap"`
 }

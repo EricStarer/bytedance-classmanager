@@ -1,0 +1,1137 @@
+Index: step2-member/Register/controller/author.go
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/step2-member/Register/controller/author.go b/step2-member/Register/controller/author.go
+deleted file mode 100644
+--- a/step2-member/Register/controller/author.go	
++++ /dev/null	
+@@ -1,136 +0,0 @@
+-package controller
+-
+-import (
+-	"Register/request"
+-	"Register/response"
+-	"Register/types"
+-	"Register/utils"
+-	"encoding/json"
+-	"fmt"
+-	"github.com/gin-gonic/gin"
+-	"net/http"
+-)
+-
+-/*
+-	登陆
+-	需要添加cookies
+-	如果是管理员登陆则允许后续注册操作
+-	SetCookie(key, value string, maxAge int, path, domain string, secure, httpOnly bool)
+-	key = "login" cookie 名称
+-	value = "1" or "2" or "3" 1代表管理员 2代表学生 3代表教师 只有管理员才有后续用户crud操作
+-- 用户输入账号和密码后点击登录。
+-- 用户名或者密码错误均返回密码错误。
+-- 登录成功后需要设置 Cookie，Cookie 名称为 camp-session。
+-*/
+-func Login(c *gin.Context) {
+-	var params request.LoginRequest
+-	jsons := utils.GetParams(c, params)
+-	json.Unmarshal(jsons, &params)
+-	
+-	fmt.Println(params.Username, params.Password)
+-	var res response.LoginResponse
+-	var admin types.TAdmin
+-	var student types.TStudent
+-	var teacher types.TTeacher
+-
+-	//依次检查三张数据表，管理员，学生，教师， 如果登陆成功则添加cookies
+-	user1 := utils.Db.Where("user_name = ? and password = ?", params.Username, params.Password).Find(&admin)
+-	fmt.Println(user1)
+-	if user1.Error == nil && admin.IsDel == 0 {
+-		cookie, err := c.Cookie("camp-session")
+-		_ = err
+-		c.SetCookie("camp-session", "1", 3600, "/", "localhost", false, true)
+-		c.SetCookie("username", params.Username, 3600, "/", "localhost", false, true)
+-		c.SetCookie("password", params.Password, 3600, "/", "localhost", false, true)
+-		fmt.Println(cookie)
+-		res.Data.UserID = "管理员登陆"
+-		c.JSON(http.StatusOK, res)
+-		return
+-	} else if admin.IsDel == 1 {
+-		res.Code = types.UserHasDeleted
+-		res.Data.UserID = "管理员用户不存在, 已经被删除"
+-		c.JSON(http.StatusOK, res)
+-		return
+-	}
+-
+-	user2 := utils.Db.Where("user_name = ? and password = ?", params.Username, params.Password).Find(&student)
+-	if user2.Error == nil && student.IsDel == 0 {
+-		cookie, err := c.Cookie("camp-session")
+-		_ = err
+-		c.SetCookie("camp-session", "2", 3600, "/", "localhost", false, true)
+-		c.SetCookie("username", params.Username, 3600, "/", "localhost", false, true)
+-		c.SetCookie("password", params.Password, 3600, "/", "localhost", false, true)
+-		fmt.Println(cookie)
+-		res.Data.UserID = "学生登陆"
+-		c.JSON(http.StatusOK, res)
+-		return
+-	} else if student.IsDel == 1 {
+-		res.Code = types.UserHasDeleted
+-		res.Data.UserID = "学生用户不存在"
+-		c.JSON(http.StatusOK, res)
+-		return
+-	}
+-
+-	user3 := utils.Db.Where("user_name = ? and password = ?", params.Username, params.Password).Find(&teacher)
+-	if user3.Error == nil && teacher.IsDel == 0 {
+-		cookie, err := c.Cookie("camp-session")
+-		_ = err
+-		c.SetCookie("camp-session", "3", 3600, "/", "localhost", false, true)
+-		c.SetCookie("username", params.Username, 3600, "/", "localhost", false, true)
+-		c.SetCookie("password", params.Password, 3600, "/", "localhost", false, true)
+-		fmt.Println(cookie)
+-		res.Data.UserID = "教师登陆"
+-		c.JSON(http.StatusOK, res)
+-		return
+-	} else if teacher.IsDel == 1 {
+-		res.Code = types.UserHasDeleted
+-		res.Data.UserID = "教师用户不存在"
+-		c.JSON(http.StatusOK, res)
+-		return
+-	}
+-	res.Code = types.WrongPassword
+-	res.Data.UserID = "密码错误"
+-	c.JSON(http.StatusOK, res)
+-	return
+-
+-}
+-
+-/*
+-   登出时清除cookie
+-*/
+-func Logout(c *gin.Context) {
+-	c.SetCookie("camp-session", "1", -1, "/", "localhost", false, true)
+-	c.SetCookie("username", "username", -1, "/", "localhost", false, true)
+-	c.SetCookie("password", "password", -1, "/", "localhost", false, true)
+-	c.JSON(http.StatusOK, gin.H{
+-		"清除cookie": "camp-session",
+-	})
+-}
+-
+-/*
+-	- 登录后访问个人信息页可以查看自己的信息，包括用户ID、用户名称、用户昵称。
+-*/
+-func Whoami(c *gin.Context) {
+-	val, _ := c.Cookie("camp-session")
+-	username, _ := c.Cookie("username")
+-	password, _ := c.Cookie("password")
+-
+-	var res response.WhoAmIResponse
+-	var admin types.TAdmin
+-	var student types.TStudent
+-	var teacher types.TTeacher
+-	if val == "1" {
+-		utils.Db.Where("user_name = ? and password = ?", username, password).Find(&admin)
+-		res.Code = types.OK
+-		res.Data = admin.TMember
+-	} else if val == "2" {
+-		utils.Db.Where("user_name = ? and password = ?", username, password).Find(&student)
+-		res.Code = types.OK
+-		res.Data = admin.TMember
+-	} else if val == "3" {
+-		utils.Db.Where("user_name = ? and password = ?", username, password).Find(&teacher)
+-		res.Code = types.OK
+-		res.Data = admin.TMember
+-	}
+-	c.JSON(http.StatusOK, res)
+-}
+Index: step2-member/Register/go.mod
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>module Register\r\n\r\ngo 1.17\r\n\r\nrequire (\r\n\tgithub.com/gin-contrib/sessions v0.0.4\r\n\tgithub.com/gin-gonic/gin v1.7.7\r\n\tgithub.com/go-sql-driver/mysql v1.6.0\r\n\tgithub.com/jinzhu/gorm v1.9.12\r\n)\r\n\r\nrequire (\r\n\tgithub.com/gin-contrib/sse v0.1.0 // indirect\r\n\tgithub.com/go-playground/locales v0.13.0 // indirect\r\n\tgithub.com/go-playground/universal-translator v0.17.0 // indirect\r\n\tgithub.com/go-playground/validator/v10 v10.4.1 // indirect\r\n\tgithub.com/golang/protobuf v1.3.3 // indirect\r\n\tgithub.com/gorilla/context v1.1.1 // indirect\r\n\tgithub.com/gorilla/securecookie v1.1.1 // indirect\r\n\tgithub.com/gorilla/sessions v1.2.1 // indirect\r\n\tgithub.com/jinzhu/inflection v1.0.0 // indirect\r\n\tgithub.com/jinzhu/now v1.1.4 // indirect\r\n\tgithub.com/json-iterator/go v1.1.9 // indirect\r\n\tgithub.com/leodido/go-urn v1.2.0 // indirect\r\n\tgithub.com/mattn/go-isatty v0.0.12 // indirect\r\n\tgithub.com/modern-go/concurrent v0.0.0-20180228061459-e0a39a4cb421 // indirect\r\n\tgithub.com/modern-go/reflect2 v0.0.0-20180701023420-4b7aa43c6742 // indirect\r\n\tgithub.com/ugorji/go/codec v1.1.7 // indirect\r\n\tgolang.org/x/crypto v0.0.0-20200622213623-75b288015ac9 // indirect\r\n\tgolang.org/x/sys v0.0.0-20200323222414-85ca7c5b95cd // indirect\r\n\tgopkg.in/yaml.v2 v2.2.8 // indirect\r\n)\r\n
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/step2-member/Register/go.mod b/step2-member/Register/go.mod
+--- a/step2-member/Register/go.mod	
++++ b/step2-member/Register/go.mod	
+@@ -5,6 +5,7 @@
+ require (
+ 	github.com/gin-contrib/sessions v0.0.4
+ 	github.com/gin-gonic/gin v1.7.7
++	github.com/go-redis/redis v6.15.9+incompatible
+ 	github.com/go-sql-driver/mysql v1.6.0
+ 	github.com/jinzhu/gorm v1.9.12
+ )
+@@ -14,7 +15,7 @@
+ 	github.com/go-playground/locales v0.13.0 // indirect
+ 	github.com/go-playground/universal-translator v0.17.0 // indirect
+ 	github.com/go-playground/validator/v10 v10.4.1 // indirect
+-	github.com/golang/protobuf v1.3.3 // indirect
++	github.com/golang/protobuf v1.5.2 // indirect
+ 	github.com/gorilla/context v1.1.1 // indirect
+ 	github.com/gorilla/securecookie v1.1.1 // indirect
+ 	github.com/gorilla/sessions v1.2.1 // indirect
+@@ -25,8 +26,11 @@
+ 	github.com/mattn/go-isatty v0.0.12 // indirect
+ 	github.com/modern-go/concurrent v0.0.0-20180228061459-e0a39a4cb421 // indirect
+ 	github.com/modern-go/reflect2 v0.0.0-20180701023420-4b7aa43c6742 // indirect
++	github.com/onsi/ginkgo v1.16.5 // indirect
++	github.com/onsi/gomega v1.18.1 // indirect
+ 	github.com/ugorji/go/codec v1.1.7 // indirect
+ 	golang.org/x/crypto v0.0.0-20200622213623-75b288015ac9 // indirect
+-	golang.org/x/sys v0.0.0-20200323222414-85ca7c5b95cd // indirect
+-	gopkg.in/yaml.v2 v2.2.8 // indirect
++	golang.org/x/sys v0.0.0-20211216021012-1d35b9e2eb4e // indirect
++	google.golang.org/protobuf v1.26.0 // indirect
++	gopkg.in/yaml.v2 v2.4.0 // indirect
+ )
+Index: step2-member/Register/types/types.go
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>package types\r\n\r\nimport (\r\n\t\"github.com/gin-contrib/sessions/cookie\"\r\n)\r\n\r\n// 说明：\r\n// 1. 所提到的「位数」均以字节长度为准\r\n// 2. 所有的 ID 均为 int64（以 string 方式表现）\r\n\r\n// 通用结构\r\ntype Test struct {\r\n\tNickName string `json:\"nick_name\"`\r\n\tUsername string `json:\"username\"`\r\n\tPassword string `json:\"password\"`\r\n\tUserType string `json:\"type_user\"`\r\n}\r\n\r\ntype ErrNo int\r\n\r\nconst (\r\n\tOK                 ErrNo = 0\r\n\tParamInvalid       ErrNo = 1  // 参数不合法\r\n\tUserHasExisted     ErrNo = 2  // 该 Username 已存在\r\n\tUserHasDeleted     ErrNo = 3  // 用户已删除\r\n\tUserNotExisted     ErrNo = 4  // 用户不存在\r\n\tWrongPassword      ErrNo = 5  // 密码错误\r\n\tLoginRequired      ErrNo = 6  // 用户未登录\r\n\tCourseNotAvailable ErrNo = 7  // 课程已满\r\n\tCourseHasBound     ErrNo = 8  // 课程已绑定过\r\n\tCourseNotBind      ErrNo = 9  // 课程未绑定过\r\n\tPermDenied         ErrNo = 10 // 没有操作权限\r\n\tStudentNotExisted  ErrNo = 11 // 学生不存在\r\n\tCourseNotExisted   ErrNo = 12 // 课程不存在\r\n\tStudentHasNoCourse ErrNo = 13 // 学生没有课程\r\n\tStudentHasCourse   ErrNo = 14 // 学生有课程\r\n\r\n\tUnknownError ErrNo = 255 // 未知错误\r\n)\r\n\r\ntype TMember struct {\r\n\tUserID   string `gorm:\"uniqueIndex\"`\r\n\tNickname string `gorm:\"column:nick_name\"`\r\n\tUsername string `gorm:\"column:user_name;unique\"`\r\n\tUserType UserType\r\n}\r\n\r\ntype TAdmin struct {\r\n\tID       uint64  `gorm:\"primaryKey\"`\r\n\tTMember  TMember `gorm:\"embedded\"`\r\n\tIsDel    int     `gorm:\"default:0\"`\r\n\tPassword string\r\n}\r\n\r\ntype TStudent struct {\r\n\tID             uint64  `gorm:\"primaryKey\"`\r\n\tTMember        TMember `gorm:\"embedded\"`\r\n\tIsDel          int     `gorm:\"default:0\"`\r\n\tPassword       string\r\n\tCourseRecordId string\r\n}\r\n\r\ntype TTeacher struct {\r\n\tID            uint64  `gorm:\"primaryKey\"`\r\n\tTMember       TMember `gorm:\"embedded\"`\r\n\tIsDel         int     `gorm:\"default:0\"`\r\n\tPassword      string\r\n\tTeachRecordId string\r\n}\r\n\r\ntype GenerateId struct {\r\n\tID       uint64 `gorm:\"primaryKey\"`\r\n\tUserName string `gorm:\"column:user_name;unique\"`\r\n\tUserType UserType\r\n\tIsDel    int `gorm:\"default:0\"`\r\n}\r\n\r\nfunc (GenerateId) TableName() string {\r\n\treturn \"generate_id\"\r\n}\r\n\r\ntype ResponseMeta struct {\r\n\tCode ErrNo\r\n}\r\n\r\ntype TCourse struct {\r\n\tCourseID  string\r\n\tName      string\r\n\tTeacherID string\r\n}\r\n\r\n// -----------------------------------\r\n\r\n// 成员管理\r\n\r\ntype UserType int\r\n\r\nconst (\r\n\tAdmin       UserType = 1\r\n\tStudent     UserType = 2\r\n\tTeacher     UserType = 3\r\n\tSessionName string   = \"camp-session\"\r\n)\r\n\r\nvar Store = cookie.NewStore([]byte(\"secret\"))\r\n\r\n// 系统内置管理员账号\r\n// 账号名：JudgeAdmin 密码：JudgePassword2022\r\n
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/step2-member/Register/types/types.go b/step2-member/Register/types/types.go
+--- a/step2-member/Register/types/types.go	
++++ b/step2-member/Register/types/types.go	
+@@ -58,6 +58,7 @@
+ 	IsDel          int     `gorm:"default:0"`
+ 	Password       string
+ 	CourseRecordId string
++	IsRange        int `gorm:"default:0;column:is_range"`
+ }
+ 
+ type TTeacher struct {
+@@ -66,6 +67,7 @@
+ 	IsDel         int     `gorm:"default:0"`
+ 	Password      string
+ 	TeachRecordId string
++	IsRange       int `gorm:"default:0;column:is_range"`
+ }
+ 
+ type GenerateId struct {
+@@ -89,6 +91,15 @@
+ 	TeacherID string
+ }
+ 
++type TCourseCwc struct {
++	ID         uint64 `gorm:"primaryKey"`
++	CourseName string `gorm:"column:course_name"`
++	Capacity   int    `gorm:"column:capacity"`
++	TeacherID  string `gorm:"column:teacher_id"`
++	Context    string `gorm:"column:context"`
++	Feature    string `gorm:"column:feature"`
++}
++
+ // -----------------------------------
+ 
+ // 成员管理
+Index: step2-member/Register/request/BindCourseRequest.go
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>package request\r\n\r\n/**\r\n\t老师绑定课程请求\r\n\t Method： Post\r\n\t 注：这里的 teacherID 不需要做已落库校验\r\n\t 一个老师可以绑定多个课程 , 不过，一个课程只能绑定在一个老师下面\r\n */\r\n\r\ntype BindCourseRequest struct {\r\n\tCourseID  string\r\n\tTeacherID string\r\n}\r\n
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/step2-member/Register/request/BindCourseRequest.go b/step2-member/Register/request/BindCourseRequest.go
+--- a/step2-member/Register/request/BindCourseRequest.go	
++++ b/step2-member/Register/request/BindCourseRequest.go	
+@@ -1,13 +1,13 @@
+ package request
+ 
+ /**
+-	老师绑定课程请求
+-	 Method： Post
+-	 注：这里的 teacherID 不需要做已落库校验
+-	 一个老师可以绑定多个课程 , 不过，一个课程只能绑定在一个老师下面
+- */
++老师绑定课程请求
++ Method： Post
++ 注：这里的 teacherID 不需要做已落库校验
++ 一个老师可以绑定多个课程 , 不过，一个课程只能绑定在一个老师下面
++*/
+ 
+ type BindCourseRequest struct {
+-	CourseID  string
+-	TeacherID string
++	CourseID  string `json:"course_id"`
++	TeacherID string `json:"teacher_id"`
+ }
+Index: step2-member/Register/router/router.go
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>package router\r\n\r\nimport (\r\n\t\"Register/controller\"\r\n\t\"Register/types\"\r\n\t\"encoding/gob\"\r\n\t\"github.com/gin-contrib/sessions\"\r\n\t\"github.com/gin-gonic/gin\"\r\n)\r\n\r\nfunc RegisterRouter(r *gin.Engine) {\r\n\r\n\tg := r.Group(\"/api/v1\")\r\n\r\n\tgob.Register(types.Teacher)\r\n\tgob.Register(types.Admin)\r\n\tgob.Register(types.Student)\r\n\r\n\tg.Use(sessions.Sessions(types.SessionName, types.Store))\r\n\r\n\t// 成员管理\r\n\r\n\tg.POST(\"/member/create\", controller.MemberCreatePost)\r\n\tg.GET(\"/member\", controller.MemberGetOne)\r\n\tg.GET(\"/member/list\", controller.MemberGetList)\r\n\tg.POST(\"/member/update\", controller.MemberUpdate)\r\n\tg.POST(\"/member/delete\", controller.MemberDelete)\r\n\r\n\t// 登录\r\n\r\n\tg.POST(\"/auth/login\", controller.MemberLogIn)\r\n\tg.POST(\"/auth/logout\", controller.MemberLogOut)\r\n\tg.GET(\"/auth/whoami\", controller.WhoAmI)\r\n\r\n\t// 排课\r\n\tg.POST(\"/course/create\")\r\n\tg.GET(\"/course/get\")\r\n\r\n\tg.POST(\"/teacher/bind_course\")\r\n\tg.POST(\"/teacher/unbind_course\")\r\n\tg.GET(\"/teacher/get_course\")\r\n\tg.POST(\"/course/schedule\")\r\n\r\n\t// 抢课\r\n\tg.POST(\"/student/book_course\")\r\n\tg.GET(\"/student/course\")\r\n\r\n}\r\n
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/step2-member/Register/router/router.go b/step2-member/Register/router/router.go
+--- a/step2-member/Register/router/router.go	
++++ b/step2-member/Register/router/router.go	
+@@ -19,7 +19,6 @@
+ 	g.Use(sessions.Sessions(types.SessionName, types.Store))
+ 
+ 	// 成员管理
+-
+ 	g.POST("/member/create", controller.MemberCreatePost)
+ 	g.GET("/member", controller.MemberGetOne)
+ 	g.GET("/member/list", controller.MemberGetList)
+@@ -27,22 +26,22 @@
+ 	g.POST("/member/delete", controller.MemberDelete)
+ 
+ 	// 登录
+-
+ 	g.POST("/auth/login", controller.MemberLogIn)
+ 	g.POST("/auth/logout", controller.MemberLogOut)
+ 	g.GET("/auth/whoami", controller.WhoAmI)
+ 
+ 	// 排课
+-	g.POST("/course/create")
+-	g.GET("/course/get")
++	g.POST("/course/create", controller.RangeCourseCreate)
++	g.GET("/course/get", controller.RangeCourseGet)
+ 
+-	g.POST("/teacher/bind_course")
+-	g.POST("/teacher/unbind_course")
+-	g.GET("/teacher/get_course")
+-	g.POST("/course/schedule")
++	g.POST("/teacher/bind_course", controller.RangeBindCourse)
++	g.POST("/teacher/unbind_course", controller.RangeUnbindCourse)
++	//这个写错了,这个应该是teacherCourse
++	g.GET("/teacher/get_course", controller.RangeGetTeacherCourse)
++	g.POST("/course/schedule", controller.RangeSchedule)
+ 
+ 	// 抢课
+-	g.POST("/student/book_course")
+-	g.GET("/student/course")
++	g.POST("/student/book_course", controller.SelectCourseBookCourse)
++	g.GET("/student/course", controller.SelectCourseGetCourse)
+ 
+ }
+Index: step2-member/Register/request/UnbindCourseRequest.go
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>package request\r\n/**\r\n\t老师解绑课程\r\n \tMethod： Post\r\n */\r\n\r\ntype UnbindCourseRequest struct {\r\n\tCourseID  string\r\n\tTeacherID string\r\n}\r\n
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/step2-member/Register/request/UnbindCourseRequest.go b/step2-member/Register/request/UnbindCourseRequest.go
+--- a/step2-member/Register/request/UnbindCourseRequest.go	
++++ b/step2-member/Register/request/UnbindCourseRequest.go	
+@@ -1,10 +1,11 @@
+ package request
++
+ /**
+ 	老师解绑课程
+  	Method： Post
+- */
++*/
+ 
+ type UnbindCourseRequest struct {
+-	CourseID  string
+-	TeacherID string
++	CourseID  string `json:"course_id"`
++	TeacherID string `json:"teacher_id"`
+ }
+Index: step2-member/Register/go.sum
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>github.com/antonlindstrom/pgstore v0.0.0-20200229204646-b08ebf1105e0/go.mod h1:2Ti6VUHVxpC0VSmTZzEvpzysnaGAfGBOoMIz5ykPyyw=\r\ngithub.com/boj/redistore v0.0.0-20180917114910-cd5dcc76aeff/go.mod h1:+RTT1BOk5P97fT2CiHkbFQwkK3mjsFAP6zCYV2aXtjw=\r\ngithub.com/bradfitz/gomemcache v0.0.0-20190913173617-a41fca850d0b/go.mod h1:H0wQNHz2YrLsuXOZozoeDmnHXkNCRmMW0gwFWDfEZDA=\r\ngithub.com/bradleypeabody/gorilla-sessions-memcache v0.0.0-20181103040241-659414f458e1/go.mod h1:dkChI7Tbtx7H1Tj7TqGSZMOeGpMP5gLHtjroHd4agiI=\r\ngithub.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=\r\ngithub.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=\r\ngithub.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=\r\ngithub.com/denisenkom/go-mssqldb v0.0.0-20191124224453-732737034ffd h1:83Wprp6ROGeiHFAP8WJdI2RoxALQYgdllERc3N5N2DM=\r\ngithub.com/denisenkom/go-mssqldb v0.0.0-20191124224453-732737034ffd/go.mod h1:xbL0rPBG9cCiLr28tMa8zpbdarY27NDyej4t/EjAShU=\r\ngithub.com/erikstmartin/go-testdb v0.0.0-20160219214506-8d10e4a1bae5 h1:Yzb9+7DPaBjB8zlTR87/ElzFsnQfuHnVUVqpZZIcV5Y=\r\ngithub.com/erikstmartin/go-testdb v0.0.0-20160219214506-8d10e4a1bae5/go.mod h1:a2zkGnVExMxdzMo3M0Hi/3sEU+cWnZpSni0O6/Yb/P0=\r\ngithub.com/gin-contrib/sessions v0.0.4 h1:gq4fNa1Zmp564iHP5G6EBuktilEos8VKhe2sza1KMgo=\r\ngithub.com/gin-contrib/sessions v0.0.4/go.mod h1:pQ3sIyviBBGcxgyR8mkeJuXbeV3h3NYmhJADQTq5+Vo=\r\ngithub.com/gin-contrib/sse v0.1.0 h1:Y/yl/+YNO8GZSjAhjMsSuLt29uWRFHdHYUb5lYOV9qE=\r\ngithub.com/gin-contrib/sse v0.1.0/go.mod h1:RHrZQHXnP2xjPF+u1gW/2HnVO7nvIa9PG3Gm+fLHvGI=\r\ngithub.com/gin-gonic/gin v1.7.4/go.mod h1:jD2toBW3GZUr5UMcdrwQA10I7RuaFOl/SGeDjXkfUtY=\r\ngithub.com/gin-gonic/gin v1.7.7 h1:3DoBmSbJbZAWqXJC3SLjAPfutPJJRN1U5pALB7EeTTs=\r\ngithub.com/gin-gonic/gin v1.7.7/go.mod h1:axIBovoeJpVj8S3BwE0uPMTeReE4+AfFtqpqaZ1qq1U=\r\ngithub.com/globalsign/mgo v0.0.0-20181015135952-eeefdecb41b8/go.mod h1:xkRDCp4j0OGD1HRkm4kmhM+pmpv3AKq5SU7GMg4oO/Q=\r\ngithub.com/go-playground/assert/v2 v2.0.1 h1:MsBgLAaY856+nPRTKrp3/OZK38U/wa0CcBYNjji3q3A=\r\ngithub.com/go-playground/assert/v2 v2.0.1/go.mod h1:VDjEfimB/XKnb+ZQfWdccd7VUvScMdVu0Titje2rxJ4=\r\ngithub.com/go-playground/locales v0.13.0 h1:HyWk6mgj5qFqCT5fjGBuRArbVDfE4hi8+e8ceBS/t7Q=\r\ngithub.com/go-playground/locales v0.13.0/go.mod h1:taPMhCMXrRLJO55olJkUXHZBHCxTMfnGwq/HNwmWNS8=\r\ngithub.com/go-playground/universal-translator v0.17.0 h1:icxd5fm+REJzpZx7ZfpaD876Lmtgy7VtROAbHHXk8no=\r\ngithub.com/go-playground/universal-translator v0.17.0/go.mod h1:UkSxE5sNxxRwHyU+Scu5vgOQjsIJAF8j9muTVoKLVtA=\r\ngithub.com/go-playground/validator/v10 v10.4.1 h1:pH2c5ADXtd66mxoE0Zm9SUhxE20r7aM3F26W0hOn+GE=\r\ngithub.com/go-playground/validator/v10 v10.4.1/go.mod h1:nlOn6nFhuKACm19sB/8EGNn9GlaMV7XkbRSipzJ0Ii4=\r\ngithub.com/go-sql-driver/mysql v1.4.1/go.mod h1:zAC/RDZ24gD3HViQzih4MyKcchzm+sOG5ZlKdlhCg5w=\r\ngithub.com/go-sql-driver/mysql v1.6.0 h1:BCTh4TKNUYmOmMUcQ3IipzF5prigylS7XXjEkfCHuOE=\r\ngithub.com/go-sql-driver/mysql v1.6.0/go.mod h1:DCzpHaOWr8IXmIStZouvnhqoel9Qv2LBy8hT2VhHyBg=\r\ngithub.com/golang-sql/civil v0.0.0-20190719163853-cb61b32ac6fe h1:lXe2qZdvpiX5WZkZR4hgp4KJVfY3nMkvmwbVkpv1rVY=\r\ngithub.com/golang-sql/civil v0.0.0-20190719163853-cb61b32ac6fe/go.mod h1:8vg3r2VgvsThLBIFL93Qb5yWzgyZWhEmBwUJWevAkK0=\r\ngithub.com/golang/protobuf v1.2.0/go.mod h1:6lQm79b+lXiMfvg/cZm0SGofjICqVBUtrP5yJMmIC1U=\r\ngithub.com/golang/protobuf v1.3.3 h1:gyjaxf+svBWX08ZjK86iN9geUJF0H6gp2IRKX6Nf6/I=\r\ngithub.com/golang/protobuf v1.3.3/go.mod h1:vzj43D7+SQXF/4pzW/hwtAqwc6iTitCiVSaWz5lYuqw=\r\ngithub.com/gomodule/redigo v2.0.0+incompatible/go.mod h1:B4C85qUVwatsJoIUNIfCRsp7qO0iAmpGFZ4EELWSbC4=\r\ngithub.com/google/gofuzz v1.0.0/go.mod h1:dBl0BpW6vV/+mYPU4Po3pmUjxk6FQPldtuIdl/M65Eg=\r\ngithub.com/gorilla/context v1.1.1 h1:AWwleXJkX/nhcU9bZSnZoi3h/qGYqQAGhq6zZe/aQW8=\r\ngithub.com/gorilla/context v1.1.1/go.mod h1:kBGZzfjB9CEq2AlWe17Uuf7NDRt0dE0s8S51q0aT7Yg=\r\ngithub.com/gorilla/securecookie v1.1.1 h1:miw7JPhV+b/lAHSXz4qd/nN9jRiAFV5FwjeKyCS8BvQ=\r\ngithub.com/gorilla/securecookie v1.1.1/go.mod h1:ra0sb63/xPlUeL+yeDciTfxMRAA+MP+HVt/4epWDjd4=\r\ngithub.com/gorilla/sessions v1.1.1/go.mod h1:8KCfur6+4Mqcc6S0FEfKuN15Vl5MgXW92AE8ovaJD0w=\r\ngithub.com/gorilla/sessions v1.2.0/go.mod h1:dk2InVEVJ0sfLlnXv9EAgkf6ecYs/i80K/zI+bUmuGM=\r\ngithub.com/gorilla/sessions v1.2.1 h1:DHd3rPN5lE3Ts3D8rKkQ8x/0kqfeNmBAaiSi+o7FsgI=\r\ngithub.com/gorilla/sessions v1.2.1/go.mod h1:dk2InVEVJ0sfLlnXv9EAgkf6ecYs/i80K/zI+bUmuGM=\r\ngithub.com/jinzhu/gorm v1.9.12 h1:Drgk1clyWT9t9ERbzHza6Mj/8FY/CqMyVzOiHviMo6Q=\r\ngithub.com/jinzhu/gorm v1.9.12/go.mod h1:vhTjlKSJUTWNtcbQtrMBFCxy7eXTzeCAzfL5fBZT/Qs=\r\ngithub.com/jinzhu/inflection v1.0.0 h1:K317FqzuhWc8YvSVlFMCCUb36O/S9MCKRDI7QkRKD/E=\r\ngithub.com/jinzhu/inflection v1.0.0/go.mod h1:h+uFLlag+Qp1Va5pdKtLDYj+kHp5pxUVkryuEj+Srlc=\r\ngithub.com/jinzhu/now v1.0.1/go.mod h1:d3SSVoowX0Lcu0IBviAWJpolVfI5UJVZZ7cO71lE/z8=\r\ngithub.com/jinzhu/now v1.1.4 h1:tHnRBy1i5F2Dh8BAFxqFzxKqqvezXrL2OW1TnX+Mlas=\r\ngithub.com/jinzhu/now v1.1.4/go.mod h1:d3SSVoowX0Lcu0IBviAWJpolVfI5UJVZZ7cO71lE/z8=\r\ngithub.com/json-iterator/go v1.1.9 h1:9yzud/Ht36ygwatGx56VwCZtlI/2AD15T1X2sjSuGns=\r\ngithub.com/json-iterator/go v1.1.9/go.mod h1:KdQUCv79m/52Kvf8AW2vK1V8akMuk1QjK/uOdHXbAo4=\r\ngithub.com/kidstuff/mongostore v0.0.0-20181113001930-e650cd85ee4b/go.mod h1:g2nVr8KZVXJSS97Jo8pJ0jgq29P6H7dG0oplUA86MQw=\r\ngithub.com/leodido/go-urn v1.2.0 h1:hpXL4XnriNwQ/ABnpepYM/1vCLWNDfUNts8dX3xTG6Y=\r\ngithub.com/leodido/go-urn v1.2.0/go.mod h1:+8+nEpDfqqsY+g338gtMEUOtuK+4dEMhiQEgxpxOKII=\r\ngithub.com/lib/pq v1.1.1/go.mod h1:5WUZQaWbwv1U+lTReE5YruASi9Al49XbQIvNi/34Woo=\r\ngithub.com/lib/pq v1.10.3 h1:v9QZf2Sn6AmjXtQeFpdoq/eaNtYP6IN+7lcrygsIAtg=\r\ngithub.com/lib/pq v1.10.3/go.mod h1:AlVN5x4E4T544tWzH6hKfbfQvm3HdbOxrmggDNAPY9o=\r\ngithub.com/mattn/go-isatty v0.0.12 h1:wuysRhFDzyxgEmMf5xjvJ2M9dZoWAXNNr5LSBS7uHXY=\r\ngithub.com/mattn/go-isatty v0.0.12/go.mod h1:cbi8OIDigv2wuxKPP5vlRcQ1OAZbq2CE4Kysco4FUpU=\r\ngithub.com/mattn/go-sqlite3 v2.0.1+incompatible h1:xQ15muvnzGBHpIpdrNi1DA5x0+TcBZzsIDwmw9uTHzw=\r\ngithub.com/mattn/go-sqlite3 v2.0.1+incompatible/go.mod h1:FPy6KqzDD04eiIsT53CuJW3U88zkxoIYsOqkbpncsNc=\r\ngithub.com/memcachier/mc v2.0.1+incompatible/go.mod h1:7bkvFE61leUBvXz+yxsOnGBQSZpBSPIMUQSmmSHvuXc=\r\ngithub.com/modern-go/concurrent v0.0.0-20180228061459-e0a39a4cb421 h1:ZqeYNhU3OHLH3mGKHDcjJRFFRrJa6eAM5H+CtDdOsPc=\r\ngithub.com/modern-go/concurrent v0.0.0-20180228061459-e0a39a4cb421/go.mod h1:6dJC0mAP4ikYIbvyc7fijjWJddQyLn8Ig3JB5CqoB9Q=\r\ngithub.com/modern-go/reflect2 v0.0.0-20180701023420-4b7aa43c6742 h1:Esafd1046DLDQ0W1YjYsBW+p8U2u7vzgW2SQVmlNazg=\r\ngithub.com/modern-go/reflect2 v0.0.0-20180701023420-4b7aa43c6742/go.mod h1:bx2lNnkwVCuqBIxFjflWJWanXIb3RllmbCylyMrvgv0=\r\ngithub.com/pkg/errors v0.9.1/go.mod h1:bwawxfHBFNV+L2hUp1rHADufV3IMtnDRdf1r5NINEl0=\r\ngithub.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZbAQM=\r\ngithub.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=\r\ngithub.com/quasoft/memstore v0.0.0-20191010062613-2bce066d2b0b/go.mod h1:wTPjTepVu7uJBYgZ0SdWHQlIas582j6cn2jgk4DDdlg=\r\ngithub.com/stretchr/objx v0.1.0/go.mod h1:HFkY916IF+rwdDfMAkV7OtwuqBVzrE8GR6GFx+wExME=\r\ngithub.com/stretchr/testify v1.3.0/go.mod h1:M5WIy9Dh21IEIfnGCwXGc5bZfKNJtfHm1UVUgZn+9EI=\r\ngithub.com/stretchr/testify v1.4.0/go.mod h1:j7eGeouHqKxXV5pUuKE4zz7dFj8WfuZ+81PSLYec5m4=\r\ngithub.com/stretchr/testify v1.7.0 h1:nwc3DEeHmmLAfoZucVR881uASk0Mfjw8xYJ99tb5CcY=\r\ngithub.com/stretchr/testify v1.7.0/go.mod h1:6Fq8oRcR53rry900zMqJjRRixrwX3KX962/h/Wwjteg=\r\ngithub.com/ugorji/go v1.1.7 h1:/68gy2h+1mWMrwZFeD1kQialdSzAb432dtpeJ42ovdo=\r\ngithub.com/ugorji/go v1.1.7/go.mod h1:kZn38zHttfInRq0xu/PH0az30d+z6vm202qpg1oXVMw=\r\ngithub.com/ugorji/go/codec v1.1.7 h1:2SvQaVZ1ouYrrKKwoSk2pzd4A9evlKJb9oTL+OaLUSs=\r\ngithub.com/ugorji/go/codec v1.1.7/go.mod h1:Ax+UKWsSmolVDwsd+7N3ZtXu+yMGCf907BLYF3GoBXY=\r\ngolang.org/x/crypto v0.0.0-20190308221718-c2843e01d9a2/go.mod h1:djNgcEr1/C05ACkg1iLfiJU5Ep61QUkGW8qpdssI0+w=\r\ngolang.org/x/crypto v0.0.0-20190325154230-a5d413f7728c/go.mod h1:djNgcEr1/C05ACkg1iLfiJU5Ep61QUkGW8qpdssI0+w=\r\ngolang.org/x/crypto v0.0.0-20191205180655-e7c4368fe9dd/go.mod h1:LzIPMQfyMNhhGPhUkYOs5KpL4U8rLKemX1yGLhDgUto=\r\ngolang.org/x/crypto v0.0.0-20200622213623-75b288015ac9 h1:psW17arqaxU48Z5kZ0CQnkZWQJsqcURM6tKiBApRjXI=\r\ngolang.org/x/crypto v0.0.0-20200622213623-75b288015ac9/go.mod h1:LzIPMQfyMNhhGPhUkYOs5KpL4U8rLKemX1yGLhDgUto=\r\ngolang.org/x/net v0.0.0-20180724234803-3673e40ba225/go.mod h1:mL1N/T3taQHkDXs73rZJwtUhF3w3ftmwwsq0BUmARs4=\r\ngolang.org/x/net v0.0.0-20190404232315-eb5bcb51f2a3/go.mod h1:t9HGtf8HONx5eT2rtn7q6eTqICYqUVnKs3thJo3Qplg=\r\ngolang.org/x/sys v0.0.0-20190215142949-d0b11bdaac8a/go.mod h1:STP8DvDyc/dI5b8T5hshtkjS+E42TnysNCUPdjciGhY=\r\ngolang.org/x/sys v0.0.0-20190412213103-97732733099d/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=\r\ngolang.org/x/sys v0.0.0-20200116001909-b77594299b42/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=\r\ngolang.org/x/sys v0.0.0-20200323222414-85ca7c5b95cd h1:xhmwyvizuTgC2qz7ZlMluP20uW+C3Rm0FD/WLDX8884=\r\ngolang.org/x/sys v0.0.0-20200323222414-85ca7c5b95cd/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=\r\ngolang.org/x/text v0.3.0/go.mod h1:NqM8EUOU14njkJ3fqMW+pc6Ldnwhi/IjpwHt7yyuwOQ=\r\ngolang.org/x/text v0.3.2/go.mod h1:bEr9sfX3Q8Zfm5fL9x+3itogRgK3+ptLWKqgva+5dAk=\r\ngolang.org/x/tools v0.0.0-20180917221912-90fa682c2a6e/go.mod h1:n7NCudcB/nEzxVGmLbDWY5pfWTLqBcC2KZ6jyYvM4mQ=\r\ngoogle.golang.org/appengine v1.4.0/go.mod h1:xpcJRLb0r/rnEns0DIKYYv+WjYCduHsrkT7/EB5XEv4=\r\ngopkg.in/check.v1 v0.0.0-20161208181325-20d25e280405 h1:yhCVgyC4o1eVCa2tZl7eS0r+SDo693bJlVdllGtEeKM=\r\ngopkg.in/check.v1 v0.0.0-20161208181325-20d25e280405/go.mod h1:Co6ibVJAznAaIkqp8huTwlJQCZ016jof/cbN4VW5Yz0=\r\ngopkg.in/yaml.v2 v2.2.2/go.mod h1:hI93XBmqTisBFMUTm0b8Fm+jr3Dg1NNxqwp+5A1VGuI=\r\ngopkg.in/yaml.v2 v2.2.8 h1:obN1ZagJSUGI0Ek/LBmuj4SNLPfIny3KsKFopxRdj10=\r\ngopkg.in/yaml.v2 v2.2.8/go.mod h1:hI93XBmqTisBFMUTm0b8Fm+jr3Dg1NNxqwp+5A1VGuI=\r\ngopkg.in/yaml.v3 v3.0.0-20200313102051-9f266ea9e77c h1:dUUwHk2QECo/6vqA44rthZ8ie2QXMNeKRTHCNY2nXvo=\r\ngopkg.in/yaml.v3 v3.0.0-20200313102051-9f266ea9e77c/go.mod h1:K4uyk7z7BCEPqu6E+C64Yfv1cQ7kz7rIZviUmN+EgEM=\r\n
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/step2-member/Register/go.sum b/step2-member/Register/go.sum
+--- a/step2-member/Register/go.sum	
++++ b/step2-member/Register/go.sum	
+@@ -2,6 +2,9 @@
+ github.com/boj/redistore v0.0.0-20180917114910-cd5dcc76aeff/go.mod h1:+RTT1BOk5P97fT2CiHkbFQwkK3mjsFAP6zCYV2aXtjw=
+ github.com/bradfitz/gomemcache v0.0.0-20190913173617-a41fca850d0b/go.mod h1:H0wQNHz2YrLsuXOZozoeDmnHXkNCRmMW0gwFWDfEZDA=
+ github.com/bradleypeabody/gorilla-sessions-memcache v0.0.0-20181103040241-659414f458e1/go.mod h1:dkChI7Tbtx7H1Tj7TqGSZMOeGpMP5gLHtjroHd4agiI=
++github.com/chzyer/logex v1.1.10/go.mod h1:+Ywpsq7O8HXn0nuIou7OrIPyXbp3wmkHB+jjWRnGsAI=
++github.com/chzyer/readline v0.0.0-20180603132655-2972be24d48e/go.mod h1:nSuG5e5PlCu98SY8svDHJxuZscDgtXS6KTTbou5AhLI=
++github.com/chzyer/test v0.0.0-20180213035817-a1ea475d72b1/go.mod h1:Q3SI9o4m/ZMnBNeIyt5eFwwo7qiLfzFZmjNmxjkiQlU=
+ github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
+ github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
+ github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
+@@ -9,6 +12,9 @@
+ github.com/denisenkom/go-mssqldb v0.0.0-20191124224453-732737034ffd/go.mod h1:xbL0rPBG9cCiLr28tMa8zpbdarY27NDyej4t/EjAShU=
+ github.com/erikstmartin/go-testdb v0.0.0-20160219214506-8d10e4a1bae5 h1:Yzb9+7DPaBjB8zlTR87/ElzFsnQfuHnVUVqpZZIcV5Y=
+ github.com/erikstmartin/go-testdb v0.0.0-20160219214506-8d10e4a1bae5/go.mod h1:a2zkGnVExMxdzMo3M0Hi/3sEU+cWnZpSni0O6/Yb/P0=
++github.com/fsnotify/fsnotify v1.4.7/go.mod h1:jwhsz4b93w/PPRr/qN1Yymfu8t87LnFCMoQvtojpjFo=
++github.com/fsnotify/fsnotify v1.4.9 h1:hsms1Qyu0jgnwNXIxa+/V/PDsU6CfLf6CNO8H7IWoS4=
++github.com/fsnotify/fsnotify v1.4.9/go.mod h1:znqG4EE+3YCdAaPaxE2ZRY/06pZUdp0tY4IgpuI1SZQ=
+ github.com/gin-contrib/sessions v0.0.4 h1:gq4fNa1Zmp564iHP5G6EBuktilEos8VKhe2sza1KMgo=
+ github.com/gin-contrib/sessions v0.0.4/go.mod h1:pQ3sIyviBBGcxgyR8mkeJuXbeV3h3NYmhJADQTq5+Vo=
+ github.com/gin-contrib/sse v0.1.0 h1:Y/yl/+YNO8GZSjAhjMsSuLt29uWRFHdHYUb5lYOV9qE=
+@@ -25,16 +31,33 @@
+ github.com/go-playground/universal-translator v0.17.0/go.mod h1:UkSxE5sNxxRwHyU+Scu5vgOQjsIJAF8j9muTVoKLVtA=
+ github.com/go-playground/validator/v10 v10.4.1 h1:pH2c5ADXtd66mxoE0Zm9SUhxE20r7aM3F26W0hOn+GE=
+ github.com/go-playground/validator/v10 v10.4.1/go.mod h1:nlOn6nFhuKACm19sB/8EGNn9GlaMV7XkbRSipzJ0Ii4=
++github.com/go-redis/redis v6.15.9+incompatible h1:K0pv1D7EQUjfyoMql+r/jZqCLizCGKFlFgcHWWmHQjg=
++github.com/go-redis/redis v6.15.9+incompatible/go.mod h1:NAIEuMOZ/fxfXJIrKDQDz8wamY7mA7PouImQ2Jvg6kA=
+ github.com/go-sql-driver/mysql v1.4.1/go.mod h1:zAC/RDZ24gD3HViQzih4MyKcchzm+sOG5ZlKdlhCg5w=
+ github.com/go-sql-driver/mysql v1.6.0 h1:BCTh4TKNUYmOmMUcQ3IipzF5prigylS7XXjEkfCHuOE=
+ github.com/go-sql-driver/mysql v1.6.0/go.mod h1:DCzpHaOWr8IXmIStZouvnhqoel9Qv2LBy8hT2VhHyBg=
++github.com/go-task/slim-sprig v0.0.0-20210107165309-348f09dbbbc0/go.mod h1:fyg7847qk6SyHyPtNmDHnmrv/HOrqktSC+C9fM+CJOE=
+ github.com/golang-sql/civil v0.0.0-20190719163853-cb61b32ac6fe h1:lXe2qZdvpiX5WZkZR4hgp4KJVfY3nMkvmwbVkpv1rVY=
+ github.com/golang-sql/civil v0.0.0-20190719163853-cb61b32ac6fe/go.mod h1:8vg3r2VgvsThLBIFL93Qb5yWzgyZWhEmBwUJWevAkK0=
+ github.com/golang/protobuf v1.2.0/go.mod h1:6lQm79b+lXiMfvg/cZm0SGofjICqVBUtrP5yJMmIC1U=
+-github.com/golang/protobuf v1.3.3 h1:gyjaxf+svBWX08ZjK86iN9geUJF0H6gp2IRKX6Nf6/I=
+ github.com/golang/protobuf v1.3.3/go.mod h1:vzj43D7+SQXF/4pzW/hwtAqwc6iTitCiVSaWz5lYuqw=
++github.com/golang/protobuf v1.4.0-rc.1/go.mod h1:ceaxUfeHdC40wWswd/P6IGgMaK3YpKi5j83Wpe3EHw8=
++github.com/golang/protobuf v1.4.0-rc.1.0.20200221234624-67d41d38c208/go.mod h1:xKAWHe0F5eneWXFV3EuXVDTCmh+JuBKY0li0aMyXATA=
++github.com/golang/protobuf v1.4.0-rc.2/go.mod h1:LlEzMj4AhA7rCAGe4KMBDvJI+AwstrUpVNzEA03Pprs=
++github.com/golang/protobuf v1.4.0-rc.4.0.20200313231945-b860323f09d0/go.mod h1:WU3c8KckQ9AFe+yFwt9sWVRKCVIyN9cPHBJSNnbL67w=
++github.com/golang/protobuf v1.4.0/go.mod h1:jodUvKwWbYaEsadDk5Fwe5c77LiNKVO9IDvqG2KuDX0=
++github.com/golang/protobuf v1.4.2/go.mod h1:oDoupMAO8OvCJWAcko0GGGIgR6R6ocIYbsSw735rRwI=
++github.com/golang/protobuf v1.5.0/go.mod h1:FsONVRAS9T7sI+LIUmWTfcYkHO4aIWwzhcaSAoJOfIk=
++github.com/golang/protobuf v1.5.2 h1:ROPKBNFfQgOUMifHyP+KYbvpjbdoFNs+aK7DXlji0Tw=
++github.com/golang/protobuf v1.5.2/go.mod h1:XVQd3VNwM+JqD3oG2Ue2ip4fOMUkwXdXDdiuN0vRsmY=
+ github.com/gomodule/redigo v2.0.0+incompatible/go.mod h1:B4C85qUVwatsJoIUNIfCRsp7qO0iAmpGFZ4EELWSbC4=
++github.com/google/go-cmp v0.3.0/go.mod h1:8QqcDgzrUqlUb/G2PQTWiueGozuR1884gddMywk6iLU=
++github.com/google/go-cmp v0.3.1/go.mod h1:8QqcDgzrUqlUb/G2PQTWiueGozuR1884gddMywk6iLU=
++github.com/google/go-cmp v0.4.0/go.mod h1:v8dTdLbMG2kIc/vJvl+f65V22dbkXbowE6jgT/gNBxE=
++github.com/google/go-cmp v0.5.5 h1:Khx7svrCpmxxtHBq5j2mp/xVjsi8hQMfNLvJFAlrGgU=
++github.com/google/go-cmp v0.5.5/go.mod h1:v8dTdLbMG2kIc/vJvl+f65V22dbkXbowE6jgT/gNBxE=
+ github.com/google/gofuzz v1.0.0/go.mod h1:dBl0BpW6vV/+mYPU4Po3pmUjxk6FQPldtuIdl/M65Eg=
++github.com/google/pprof v0.0.0-20210407192527-94a9f03dee38/go.mod h1:kpwsk12EmLew5upagYY7GY0pfYCcupk39gWOCRROcvE=
+ github.com/gorilla/context v1.1.1 h1:AWwleXJkX/nhcU9bZSnZoi3h/qGYqQAGhq6zZe/aQW8=
+ github.com/gorilla/context v1.1.1/go.mod h1:kBGZzfjB9CEq2AlWe17Uuf7NDRt0dE0s8S51q0aT7Yg=
+ github.com/gorilla/securecookie v1.1.1 h1:miw7JPhV+b/lAHSXz4qd/nN9jRiAFV5FwjeKyCS8BvQ=
+@@ -43,6 +66,8 @@
+ github.com/gorilla/sessions v1.2.0/go.mod h1:dk2InVEVJ0sfLlnXv9EAgkf6ecYs/i80K/zI+bUmuGM=
+ github.com/gorilla/sessions v1.2.1 h1:DHd3rPN5lE3Ts3D8rKkQ8x/0kqfeNmBAaiSi+o7FsgI=
+ github.com/gorilla/sessions v1.2.1/go.mod h1:dk2InVEVJ0sfLlnXv9EAgkf6ecYs/i80K/zI+bUmuGM=
++github.com/hpcloud/tail v1.0.0/go.mod h1:ab1qPbhIpdTxEkNHXyeSf5vhxWSCs/tWer42PpOxQnU=
++github.com/ianlancetaylor/demangle v0.0.0-20200824232613-28f6c0f3b639/go.mod h1:aSSvb/t6k1mPoxDqO4vJh6VOCGPwU4O0C2/Eqndh1Sc=
+ github.com/jinzhu/gorm v1.9.12 h1:Drgk1clyWT9t9ERbzHza6Mj/8FY/CqMyVzOiHviMo6Q=
+ github.com/jinzhu/gorm v1.9.12/go.mod h1:vhTjlKSJUTWNtcbQtrMBFCxy7eXTzeCAzfL5fBZT/Qs=
+ github.com/jinzhu/inflection v1.0.0 h1:K317FqzuhWc8YvSVlFMCCUb36O/S9MCKRDI7QkRKD/E=
+@@ -67,6 +92,20 @@
+ github.com/modern-go/concurrent v0.0.0-20180228061459-e0a39a4cb421/go.mod h1:6dJC0mAP4ikYIbvyc7fijjWJddQyLn8Ig3JB5CqoB9Q=
+ github.com/modern-go/reflect2 v0.0.0-20180701023420-4b7aa43c6742 h1:Esafd1046DLDQ0W1YjYsBW+p8U2u7vzgW2SQVmlNazg=
+ github.com/modern-go/reflect2 v0.0.0-20180701023420-4b7aa43c6742/go.mod h1:bx2lNnkwVCuqBIxFjflWJWanXIb3RllmbCylyMrvgv0=
++github.com/nxadm/tail v1.4.4/go.mod h1:kenIhsEOeOJmVchQTgglprH7qJGnHDVpk1VPCcaMI8A=
++github.com/nxadm/tail v1.4.8 h1:nPr65rt6Y5JFSKQO7qToXr7pePgD6Gwiw05lkbyAQTE=
++github.com/nxadm/tail v1.4.8/go.mod h1:+ncqLTQzXmGhMZNUePPaPqPvBxHAIsmXswZKocGu+AU=
++github.com/onsi/ginkgo v1.6.0/go.mod h1:lLunBs/Ym6LB5Z9jYTR76FiuTmxDTDusOGeTQH+WWjE=
++github.com/onsi/ginkgo v1.12.1/go.mod h1:zj2OWP4+oCPe1qIXoGWkgMRwljMUYCdkwsT2108oapk=
++github.com/onsi/ginkgo v1.16.4/go.mod h1:dX+/inL/fNMqNlz0e9LfyB9TswhZpCVdJM/Z6Vvnwo0=
++github.com/onsi/ginkgo v1.16.5 h1:8xi0RTUf59SOSfEtZMvwTvXYMzG4gV23XVHOZiXNtnE=
++github.com/onsi/ginkgo v1.16.5/go.mod h1:+E8gABHa3K6zRBolWtd+ROzc/U5bkGt0FwiG042wbpU=
++github.com/onsi/ginkgo/v2 v2.0.0/go.mod h1:vw5CSIxN1JObi/U8gcbwft7ZxR2dgaR70JSE3/PpL4c=
++github.com/onsi/gomega v1.7.1/go.mod h1:XdKZgCCFLUoM/7CFJVPcG8C1xQ1AJ0vpAezJrB7JYyY=
++github.com/onsi/gomega v1.10.1/go.mod h1:iN09h71vgCQne3DLsj+A5owkum+a2tYe+TOCB1ybHNo=
++github.com/onsi/gomega v1.17.0/go.mod h1:HnhC7FXeEQY45zxNK3PPoIUhzk/80Xly9PcubAlGdZY=
++github.com/onsi/gomega v1.18.1 h1:M1GfJqGRrBrrGGsbxzV5dqM2U2ApXefZCQpkukxYRLE=
++github.com/onsi/gomega v1.18.1/go.mod h1:0q+aL8jAiMXy9hbwj2mr5GziHiwhAIQpFmmtT5hitRs=
+ github.com/pkg/errors v0.9.1/go.mod h1:bwawxfHBFNV+L2hUp1rHADufV3IMtnDRdf1r5NINEl0=
+ github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZbAQM=
+ github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
+@@ -74,32 +113,81 @@
+ github.com/stretchr/objx v0.1.0/go.mod h1:HFkY916IF+rwdDfMAkV7OtwuqBVzrE8GR6GFx+wExME=
+ github.com/stretchr/testify v1.3.0/go.mod h1:M5WIy9Dh21IEIfnGCwXGc5bZfKNJtfHm1UVUgZn+9EI=
+ github.com/stretchr/testify v1.4.0/go.mod h1:j7eGeouHqKxXV5pUuKE4zz7dFj8WfuZ+81PSLYec5m4=
++github.com/stretchr/testify v1.5.1/go.mod h1:5W2xD1RspED5o8YsWQXVCued0rvSQ+mT+I5cxcmMvtA=
+ github.com/stretchr/testify v1.7.0 h1:nwc3DEeHmmLAfoZucVR881uASk0Mfjw8xYJ99tb5CcY=
+ github.com/stretchr/testify v1.7.0/go.mod h1:6Fq8oRcR53rry900zMqJjRRixrwX3KX962/h/Wwjteg=
+ github.com/ugorji/go v1.1.7 h1:/68gy2h+1mWMrwZFeD1kQialdSzAb432dtpeJ42ovdo=
+ github.com/ugorji/go v1.1.7/go.mod h1:kZn38zHttfInRq0xu/PH0az30d+z6vm202qpg1oXVMw=
+ github.com/ugorji/go/codec v1.1.7 h1:2SvQaVZ1ouYrrKKwoSk2pzd4A9evlKJb9oTL+OaLUSs=
+ github.com/ugorji/go/codec v1.1.7/go.mod h1:Ax+UKWsSmolVDwsd+7N3ZtXu+yMGCf907BLYF3GoBXY=
++github.com/yuin/goldmark v1.2.1/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=
+ golang.org/x/crypto v0.0.0-20190308221718-c2843e01d9a2/go.mod h1:djNgcEr1/C05ACkg1iLfiJU5Ep61QUkGW8qpdssI0+w=
+ golang.org/x/crypto v0.0.0-20190325154230-a5d413f7728c/go.mod h1:djNgcEr1/C05ACkg1iLfiJU5Ep61QUkGW8qpdssI0+w=
++golang.org/x/crypto v0.0.0-20191011191535-87dc89f01550/go.mod h1:yigFU9vqHzYiE8UmvKecakEJjdnWj3jj499lnFckfCI=
+ golang.org/x/crypto v0.0.0-20191205180655-e7c4368fe9dd/go.mod h1:LzIPMQfyMNhhGPhUkYOs5KpL4U8rLKemX1yGLhDgUto=
+ golang.org/x/crypto v0.0.0-20200622213623-75b288015ac9 h1:psW17arqaxU48Z5kZ0CQnkZWQJsqcURM6tKiBApRjXI=
+ golang.org/x/crypto v0.0.0-20200622213623-75b288015ac9/go.mod h1:LzIPMQfyMNhhGPhUkYOs5KpL4U8rLKemX1yGLhDgUto=
++golang.org/x/mod v0.3.0/go.mod h1:s0Qsj1ACt9ePp/hMypM3fl4fZqREWJwdYDEqhRiZZUA=
+ golang.org/x/net v0.0.0-20180724234803-3673e40ba225/go.mod h1:mL1N/T3taQHkDXs73rZJwtUhF3w3ftmwwsq0BUmARs4=
++golang.org/x/net v0.0.0-20180906233101-161cd47e91fd/go.mod h1:mL1N/T3taQHkDXs73rZJwtUhF3w3ftmwwsq0BUmARs4=
+ golang.org/x/net v0.0.0-20190404232315-eb5bcb51f2a3/go.mod h1:t9HGtf8HONx5eT2rtn7q6eTqICYqUVnKs3thJo3Qplg=
++golang.org/x/net v0.0.0-20190620200207-3b0461eec859/go.mod h1:z5CRVTTTmAJ677TzLLGU+0bjPO0LkuOLi4/5GtJWs/s=
++golang.org/x/net v0.0.0-20200520004742-59133d7f0dd7/go.mod h1:qpuaurCH72eLCgpAm/N6yyVIVM9cpaDIP3A8BGJEC5A=
++golang.org/x/net v0.0.0-20201021035429-f5854403a974/go.mod h1:sp8m0HH+o8qH0wwXwYZr8TS3Oi6o0r6Gce1SSxlDquU=
++golang.org/x/net v0.0.0-20210428140749-89ef3d95e781 h1:DzZ89McO9/gWPsQXS/FVKAlG02ZjaQ6AlZRBimEYOd0=
++golang.org/x/net v0.0.0-20210428140749-89ef3d95e781/go.mod h1:OJAsFXCWl8Ukc7SiCT/9KSuxbyM7479/AVlXFRxuMCk=
++golang.org/x/sync v0.0.0-20180314180146-1d60e4601c6f/go.mod h1:RxMgew5VJxzue5/jJTE5uejpjVlOe/izrB70Jof72aM=
++golang.org/x/sync v0.0.0-20190423024810-112230192c58/go.mod h1:RxMgew5VJxzue5/jJTE5uejpjVlOe/izrB70Jof72aM=
++golang.org/x/sync v0.0.0-20201020160332-67f06af15bc9/go.mod h1:RxMgew5VJxzue5/jJTE5uejpjVlOe/izrB70Jof72aM=
++golang.org/x/sys v0.0.0-20180909124046-d0be0721c37e/go.mod h1:STP8DvDyc/dI5b8T5hshtkjS+E42TnysNCUPdjciGhY=
+ golang.org/x/sys v0.0.0-20190215142949-d0b11bdaac8a/go.mod h1:STP8DvDyc/dI5b8T5hshtkjS+E42TnysNCUPdjciGhY=
+ golang.org/x/sys v0.0.0-20190412213103-97732733099d/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
++golang.org/x/sys v0.0.0-20190904154756-749cb33beabd/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
++golang.org/x/sys v0.0.0-20191005200804-aed5e4c7ecf9/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
++golang.org/x/sys v0.0.0-20191120155948-bd437916bb0e/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
++golang.org/x/sys v0.0.0-20191204072324-ce4227a45e2e/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
+ golang.org/x/sys v0.0.0-20200116001909-b77594299b42/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
+-golang.org/x/sys v0.0.0-20200323222414-85ca7c5b95cd h1:xhmwyvizuTgC2qz7ZlMluP20uW+C3Rm0FD/WLDX8884=
+ golang.org/x/sys v0.0.0-20200323222414-85ca7c5b95cd/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
++golang.org/x/sys v0.0.0-20200930185726-fdedc70b468f/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
++golang.org/x/sys v0.0.0-20201119102817-f84b799fce68/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
++golang.org/x/sys v0.0.0-20210112080510-489259a85091/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
++golang.org/x/sys v0.0.0-20210423082822-04245dca01da/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
++golang.org/x/sys v0.0.0-20211216021012-1d35b9e2eb4e h1:fLOSk5Q00efkSvAm+4xcoXD+RRmLmmulPn5I3Y9F2EM=
++golang.org/x/sys v0.0.0-20211216021012-1d35b9e2eb4e/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
++golang.org/x/term v0.0.0-20201126162022-7de9c90e9dd1/go.mod h1:bj7SfCRtBDWHUb9snDiAeCFNEtKQo2Wmx5Cou7ajbmo=
+ golang.org/x/text v0.3.0/go.mod h1:NqM8EUOU14njkJ3fqMW+pc6Ldnwhi/IjpwHt7yyuwOQ=
+ golang.org/x/text v0.3.2/go.mod h1:bEr9sfX3Q8Zfm5fL9x+3itogRgK3+ptLWKqgva+5dAk=
++golang.org/x/text v0.3.3/go.mod h1:5Zoc/QRtKVWzQhOtBMvqHzDpF6irO9z98xDceosuGiQ=
++golang.org/x/text v0.3.6 h1:aRYxNxv6iGQlyVaZmk6ZgYEDa+Jg18DxebPSrd6bg1M=
++golang.org/x/text v0.3.6/go.mod h1:5Zoc/QRtKVWzQhOtBMvqHzDpF6irO9z98xDceosuGiQ=
+ golang.org/x/tools v0.0.0-20180917221912-90fa682c2a6e/go.mod h1:n7NCudcB/nEzxVGmLbDWY5pfWTLqBcC2KZ6jyYvM4mQ=
++golang.org/x/tools v0.0.0-20191119224855-298f0cb1881e/go.mod h1:b+2E5dAYhXwXZwtnZ6UAqBI28+e2cm9otk0dWdXHAEo=
++golang.org/x/tools v0.0.0-20201224043029-2b0845dc783e/go.mod h1:emZCQorbCU4vsT4fOWvOPXz4eW1wZW4PmDk9uLelYpA=
++golang.org/x/xerrors v0.0.0-20190717185122-a985d3407aa7/go.mod h1:I/5z698sn9Ka8TeJc9MKroUUfqBBauWjQqLJ2OPfmY0=
++golang.org/x/xerrors v0.0.0-20191011141410-1b5146add898/go.mod h1:I/5z698sn9Ka8TeJc9MKroUUfqBBauWjQqLJ2OPfmY0=
++golang.org/x/xerrors v0.0.0-20191204190536-9bdfabe68543/go.mod h1:I/5z698sn9Ka8TeJc9MKroUUfqBBauWjQqLJ2OPfmY0=
++golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1 h1:go1bK/D/BFZV2I8cIQd1NKEZ+0owSTG1fDTci4IqFcE=
++golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1/go.mod h1:I/5z698sn9Ka8TeJc9MKroUUfqBBauWjQqLJ2OPfmY0=
+ google.golang.org/appengine v1.4.0/go.mod h1:xpcJRLb0r/rnEns0DIKYYv+WjYCduHsrkT7/EB5XEv4=
++google.golang.org/protobuf v0.0.0-20200109180630-ec00e32a8dfd/go.mod h1:DFci5gLYBciE7Vtevhsrf46CRTquxDuWsQurQQe4oz8=
++google.golang.org/protobuf v0.0.0-20200221191635-4d8936d0db64/go.mod h1:kwYJMbMJ01Woi6D6+Kah6886xMZcty6N08ah7+eCXa0=
++google.golang.org/protobuf v0.0.0-20200228230310-ab0ca4ff8a60/go.mod h1:cfTl7dwQJ+fmap5saPgwCLgHXTUD7jkjRqWcaiX5VyM=
++google.golang.org/protobuf v1.20.1-0.20200309200217-e05f789c0967/go.mod h1:A+miEFZTKqfCUM6K7xSMQL9OKL/b6hQv+e19PK+JZNE=
++google.golang.org/protobuf v1.21.0/go.mod h1:47Nbq4nVaFHyn7ilMalzfO3qCViNmqZ2kzikPIcrTAo=
++google.golang.org/protobuf v1.23.0/go.mod h1:EGpADcykh3NcUnDUJcl1+ZksZNG86OlYog2l/sGQquU=
++google.golang.org/protobuf v1.26.0-rc.1/go.mod h1:jlhhOSvTdKEhbULTjvd4ARK9grFBp09yW+WbY/TyQbw=
++google.golang.org/protobuf v1.26.0 h1:bxAC2xTBsZGibn2RTntX0oH50xLsqy1OxA9tTL3p/lk=
++google.golang.org/protobuf v1.26.0/go.mod h1:9q0QmTI4eRPtz6boOQmLYwt+qCgq0jsYwAQnmE0givc=
+ gopkg.in/check.v1 v0.0.0-20161208181325-20d25e280405 h1:yhCVgyC4o1eVCa2tZl7eS0r+SDo693bJlVdllGtEeKM=
+ gopkg.in/check.v1 v0.0.0-20161208181325-20d25e280405/go.mod h1:Co6ibVJAznAaIkqp8huTwlJQCZ016jof/cbN4VW5Yz0=
++gopkg.in/fsnotify.v1 v1.4.7/go.mod h1:Tz8NjZHkW78fSQdbUxIjBTcgA1z1m8ZHf0WmKUhAMys=
++gopkg.in/tomb.v1 v1.0.0-20141024135613-dd632973f1e7 h1:uRGJdciOHaEIrze2W8Q3AKkepLTh2hOroT7a+7czfdQ=
++gopkg.in/tomb.v1 v1.0.0-20141024135613-dd632973f1e7/go.mod h1:dt/ZhP58zS4L8KSrWDmTeBkI65Dw0HsyUHuEVlX15mw=
+ gopkg.in/yaml.v2 v2.2.2/go.mod h1:hI93XBmqTisBFMUTm0b8Fm+jr3Dg1NNxqwp+5A1VGuI=
+-gopkg.in/yaml.v2 v2.2.8 h1:obN1ZagJSUGI0Ek/LBmuj4SNLPfIny3KsKFopxRdj10=
++gopkg.in/yaml.v2 v2.2.4/go.mod h1:hI93XBmqTisBFMUTm0b8Fm+jr3Dg1NNxqwp+5A1VGuI=
+ gopkg.in/yaml.v2 v2.2.8/go.mod h1:hI93XBmqTisBFMUTm0b8Fm+jr3Dg1NNxqwp+5A1VGuI=
++gopkg.in/yaml.v2 v2.3.0/go.mod h1:hI93XBmqTisBFMUTm0b8Fm+jr3Dg1NNxqwp+5A1VGuI=
++gopkg.in/yaml.v2 v2.4.0 h1:D8xgwECY7CYvx+Y2n4sBz93Jn9JRvxdiyyo8CTfuKaY=
++gopkg.in/yaml.v2 v2.4.0/go.mod h1:RDklbk79AGWmwhnvt/jBztapEOGDOx6ZbXqjP6csGnQ=
+ gopkg.in/yaml.v3 v3.0.0-20200313102051-9f266ea9e77c h1:dUUwHk2QECo/6vqA44rthZ8ie2QXMNeKRTHCNY2nXvo=
+ gopkg.in/yaml.v3 v3.0.0-20200313102051-9f266ea9e77c/go.mod h1:K4uyk7z7BCEPqu6E+C64Yfv1cQ7kz7rIZviUmN+EgEM=
+Index: step2-member/Register/response/ScheduleCourseResponse.go
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>package response\r\n\r\nimport \"Register/types\"\r\n\r\n/**\r\n\t排课求解器的响应\r\n */\r\ntype ScheduleCourseResponse struct {\r\n\tCode types.ErrNo\r\n\tData map[string]string // key 为 teacherID , val 为老师最终绑定的课程 courseID\r\n}\r\n
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/step2-member/Register/response/ScheduleCourseResponse.go b/step2-member/Register/response/ScheduleCourseResponse.go
+--- a/step2-member/Register/response/ScheduleCourseResponse.go	
++++ b/step2-member/Register/response/ScheduleCourseResponse.go	
+@@ -3,9 +3,11 @@
+ import "Register/types"
+ 
+ /**
+-	排课求解器的响应
+- */
++排课求解器的响应
++*/
+ type ScheduleCourseResponse struct {
+ 	Code types.ErrNo
+ 	Data map[string]string // key 为 teacherID , val 为老师最终绑定的课程 courseID
+ }
++
++//按照目前意思来看,其好像是说,课程和老师是一一对应的,如果该课程没找到老师,则找一个未分配的老师来教
+Index: step2-member/Register/request/GetStudentCourseRequest.go
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>package request\r\n/**\r\n\t获取学生选课情况的安排\r\n */\r\ntype GetStudentCourseRequest struct {\r\n\tStudentID string\r\n}\r\n
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/step2-member/Register/request/GetStudentCourseRequest.go b/step2-member/Register/request/GetStudentCourseRequest.go
+--- a/step2-member/Register/request/GetStudentCourseRequest.go	
++++ b/step2-member/Register/request/GetStudentCourseRequest.go	
+@@ -1,7 +1,8 @@
+ package request
++
+ /**
+-	获取学生选课情况的安排
+- */
++获取学生选课情况的安排
++*/
+ type GetStudentCourseRequest struct {
+-	StudentID string
++	StudentID string `json:"student_id"`
+ }
+Index: step2-member/Register/utils/getParams.go
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>package utils\r\n\r\nimport (\r\n\t\"encoding/json\"\r\n\t\"fmt\"\r\n\t\"github.com/gin-gonic/gin\"\r\n\t\"strconv\"\r\n)\r\n\r\n/**\r\n获取参数,不管是什么方式传的参数都可以接收到\r\n使用方法\r\n入参 request的struct要规定好json名\r\n出参 json 需要用json.Unmarshal(jsons,&入参结构对象)\r\n例子\r\n\tvar test types.Test\r\n\tjsons := utils.GetParams(c, test)\r\n\tjson.Unmarshal(jsons,&test)\r\n\t此时test就可以直接用\r\n\r\nreturn nil 表示转换失败\r\n*/\r\nfunc GetParams(context *gin.Context, requestStruct interface{}) []byte {\r\n\tmarshal, _ := json.Marshal(requestStruct)\r\n\tvar needParamsMap map[string]interface{}\r\n\tjson.Unmarshal(marshal, &needParamsMap)\r\n\tvar needParams []string\r\n\tfor key, _ := range needParamsMap {\r\n\t\tneedParams = append(needParams, key)\r\n\t}\r\n\r\n\tparams := make(map[string]interface{})\r\n\tif context.Request.Method == \"POST\" {\r\n\t\tfor _, val := range needParams {\r\n\t\t\tif data, ok := context.GetPostForm(val); ok {\r\n\t\t\t\tparams[val] = data\r\n\t\t\t}\r\n\t\t}\r\n\t} else if context.Request.Method == \"GET\" {\r\n\t\tfor _, val := range needParams {\r\n\t\t\tif data := context.Query(val); len(data) > 0 {\r\n\t\t\t\tparams[val] = data\r\n\t\t\t\tcontinue\r\n\t\t\t}\r\n\t\t\tif data, ok := context.GetPostForm(val); ok {\r\n\t\t\t\tparams[val] = data\r\n\t\t\t}\r\n\t\t}\r\n\t} else {\r\n\t\tfmt.Println(\"没接收到数据,有错误\")\r\n\t}\r\n\tif len(params) != len(needParams) {\r\n\t\tdecoder := json.NewDecoder(context.Request.Body)\r\n\t\tdecoder.Decode(&params)\r\n\t}\r\n\r\n\tjsons, err := json.Marshal(&params)\r\n\tif err != nil {\r\n\t\tfmt.Println(\"参数转换失败1\")\r\n\t\treturn nil\r\n\t}\r\n\treturn jsons\r\n}\r\n\r\nfunc convertToString(value interface{}) string {\r\n\tswitch value.(type) {\r\n\tcase string:\r\n\t\treturn value.(string)\r\n\tcase bool:\r\n\t\treturn strconv.FormatBool(value.(bool))\r\n\tcase int, int64, int32, int16, int8:\r\n\t\treturn strconv.FormatInt(value.(int64), 10)\r\n\tcase uint64, uint32, uint16, uint8:\r\n\t\treturn strconv.FormatUint(value.(uint64), 10)\r\n\tcase float64, float32:\r\n\t\treturn strconv.FormatFloat(value.(float64), 'f', 0, 64)\r\n\tcase complex64, complex128:\r\n\t\treturn strconv.FormatComplex(value.(complex128), 'f', 0, 128)\r\n\tdefault:\r\n\t\treturn \"\"\r\n\t}\r\n}\r\n
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/step2-member/Register/utils/getParams.go b/step2-member/Register/utils/getParams.go
+--- a/step2-member/Register/utils/getParams.go	
++++ b/step2-member/Register/utils/getParams.go	
+@@ -4,6 +4,7 @@
+ 	"encoding/json"
+ 	"fmt"
+ 	"github.com/gin-gonic/gin"
++	"reflect"
+ 	"strconv"
+ )
+ 
+@@ -39,7 +40,13 @@
+ 	} else if context.Request.Method == "GET" {
+ 		for _, val := range needParams {
+ 			if data := context.Query(val); len(data) > 0 {
+-				params[val] = data
++				if reflect.TypeOf(data).Name() == "string" &&
++					(val == "Offset" || val == "Limit" || val == "offset" || val == "limit") {
++					num, _ := strconv.Atoi(data)
++					params[val] = num
++				} else {
++					params[val] = data
++				}
+ 				continue
+ 			}
+ 			if data, ok := context.GetPostForm(val); ok {
+Index: step2-member/Register/myRedis/myRedis.go
+===================================================================
+diff --git a/step2-member/Register/myRedis/myRedis.go b/step2-member/Register/myRedis/myRedis.go
+new file mode 100644
+--- /dev/null	
++++ b/step2-member/Register/myRedis/myRedis.go	
+@@ -0,0 +1,19 @@
++package myRedis
++
++import (
++	"github.com/go-redis/redis"
++	"sync"
++	"time"
++)
++
++var RedisService *redis.Client
++
++var CourseCapacityMap sync.Map
++
++const (
++	RedisNetWork string        = "tcp"
++	RedisAddr    string        = "180.184.74.238"
++	RedisPort    string        = "6379"
++	RedisPrefix  string        = ""
++	RedisTimeOut time.Duration = time.Duration(72) * time.Hour
++)
+Index: step2-member/Register/controller/range.go
+===================================================================
+diff --git a/step2-member/Register/controller/range.go b/step2-member/Register/controller/range.go
+new file mode 100644
+--- /dev/null	
++++ b/step2-member/Register/controller/range.go	
+@@ -0,0 +1,244 @@
++package controller
++
++import (
++	"Register/myRedis"
++	"Register/request"
++	"Register/response"
++	"Register/types"
++	"Register/utils"
++	"encoding/json"
++	"fmt"
++	"github.com/gin-gonic/gin"
++	"net/http"
++	"strconv"
++	"strings"
++)
++
++//创建课程
++func RangeCourseCreate(c *gin.Context) {
++	var requestParams request.CreateCourseRequest
++	var res response.CreateCourseResponse
++	jsons := utils.GetParams(c, requestParams)
++	json.Unmarshal(jsons, &requestParams)
++
++	if len(requestParams.Name) < 1 || requestParams.Cap < 0 {
++		res.Code = types.ParamInvalid
++		c.JSON(http.StatusOK, res)
++		return
++	}
++	var course = types.TCourseCwc{CourseName: requestParams.Name, Capacity: requestParams.Cap}
++	utils.Db.Create(&course)
++	res.Data.CourseID = strconv.FormatUint(course.ID, 10)
++	res.Code = types.OK
++	//设置 redis key = couresId , val = cap
++	set := myRedis.RedisService.Set(res.Data.CourseID, requestParams.Cap, myRedis.RedisTimeOut)
++	fmt.Println(set.Err())
++	c.JSON(http.StatusOK, res)
++	return
++}
++
++//获取课程
++func RangeCourseGet(c *gin.Context) {
++	var requestParams request.GetCourseRequest
++	jsons := utils.GetParams(c, requestParams)
++	json.Unmarshal(jsons, &requestParams)
++	var res response.GetCourseResponse
++	var tCourse types.TCourseCwc
++	id, err := strconv.Atoi(requestParams.CourseID)
++	if err != nil || len(requestParams.CourseID) < 1 {
++		res.Code = types.ParamInvalid
++		c.JSON(http.StatusOK, res)
++		return
++	}
++	tCourse.ID = (uint64)(id)
++	first := utils.Db.First(&tCourse)
++	if first.Error != nil {
++		res.Code = types.CourseNotExisted
++		c.JSON(http.StatusOK, res)
++		return
++	}
++	var data types.TCourse
++	data.CourseID = requestParams.CourseID
++	data.Name = tCourse.CourseName
++	data.TeacherID = tCourse.TeacherID
++	res.Code = types.OK
++	res.Data = data
++	c.JSON(http.StatusOK, res)
++	return
++}
++
++//绑定课程
++
++func RangeBindCourse(c *gin.Context) {
++	var requestParams request.BindCourseRequest
++	var res response.BindCourseResponse
++	jsons := utils.GetParams(c, requestParams)
++	json.Unmarshal(jsons, &requestParams)
++	var tCourse types.TCourseCwc
++	id, errid := strconv.ParseUint(requestParams.CourseID, 10, 64)
++	_, errtid := strconv.ParseUint(requestParams.TeacherID, 10, 64)
++	if errid != nil || errtid != nil || len(requestParams.CourseID) < 1 || len(requestParams.TeacherID) < 1 {
++		res.Code = types.ParamInvalid
++		c.JSON(http.StatusOK, res)
++		return
++	}
++	tCourse.ID = id
++	first := utils.Db.First(&tCourse)
++	if first.Error != nil {
++		res.Code = types.CourseNotExisted
++		c.JSON(http.StatusOK, res)
++		return
++	}
++	if len(tCourse.TeacherID) > 0 {
++		res.Code = types.CourseHasBound
++		c.JSON(http.StatusOK, res)
++		return
++	}
++	//teacher 不需要做已落库校验
++	tCourse.TeacherID = requestParams.TeacherID
++	utils.Db.Model(&tCourse).Update("teacher_id", requestParams.TeacherID)
++	var teacher types.TTeacher
++	utils.Db.Where("user_id = ?", requestParams.TeacherID).First(&teacher)
++	utils.Db.Model(&teacher).Update("teach_record_id", teacher.TeachRecordId+"`"+requestParams.CourseID+"`;")
++	res.Code = types.OK
++	c.JSON(http.StatusOK, res)
++	return
++}
++
++//解绑课程
++
++func RangeUnbindCourse(c *gin.Context) {
++	var requestParams request.UnbindCourseRequest
++	var res response.UnbindCourseResponse
++	jsons := utils.GetParams(c, requestParams)
++	json.Unmarshal(jsons, &requestParams)
++	cid, errCid := strconv.ParseUint(requestParams.CourseID, 10, 64)
++	_, errTid := strconv.ParseUint(requestParams.TeacherID, 10, 64)
++	if errCid != nil || errTid != nil || len(requestParams.TeacherID) < 1 || len(requestParams.CourseID) < 1 {
++		res.Code = types.ParamInvalid
++		c.JSON(http.StatusOK, res)
++		return
++	}
++	var tCourse types.TCourseCwc
++	tCourse.ID = cid
++	first := utils.Db.First(&tCourse)
++	if first.Error != nil {
++		res.Code = types.CourseNotExisted
++		c.JSON(http.StatusOK, res)
++		return
++	}
++	if len(tCourse.TeacherID) < 1 {
++		res.Code = types.CourseNotBind
++		c.JSON(http.StatusOK, res)
++		return
++	}
++
++	var teacher types.TTeacher
++	update := utils.Db.Model(&tCourse).Update("teacher_id", "")
++	if update.Error != nil {
++		fmt.Println(update.Error)
++		return
++	}
++	utils.Db.Where("user_id = ?", requestParams.TeacherID).First(&teacher)
++	teacher.TeachRecordId = strings.ReplaceAll(teacher.TeachRecordId, "`"+requestParams.CourseID+"`;", "")
++	utils.Db.Model(&teacher).Update("teach_record_id", teacher.TeachRecordId)
++	res.Code = types.OK
++	c.JSON(http.StatusOK, res)
++	return
++}
++
++//老师获取课程
++func RangeGetTeacherCourse(c *gin.Context) {
++	var requestParams request.GetTeacherCourseRequest
++	var res response.GetTeacherCourseResponse
++	jsons := utils.GetParams(c, requestParams)
++	json.Unmarshal(jsons, &requestParams)
++	if _, err := strconv.Atoi(requestParams.TeacherID); err != nil || len(requestParams.TeacherID) < 1 {
++		res.Code = types.ParamInvalid
++		c.JSON(http.StatusOK, res)
++		return
++	}
++	var teacher types.TTeacher
++	utils.Db.Where("user_id = ?", requestParams.TeacherID).First(&teacher)
++	//明天写
++	var data []*types.TCourse
++	split := strings.Split(teacher.TeachRecordId, ";")
++	for _, courseId := range split {
++		cid, err := strconv.ParseUint(strings.Trim(courseId, "`"), 10, 64)
++		if err != nil {
++			continue
++		}
++		var tCourse types.TCourseCwc
++		var course types.TCourse
++		tCourse.ID = cid
++		utils.Db.First(&tCourse)
++		course.Name = tCourse.CourseName
++		course.TeacherID = tCourse.TeacherID
++		course.CourseID = strconv.FormatUint(cid, 10)
++		data = append(data, &course)
++	}
++	res.Data.CourseList = data
++	c.JSON(http.StatusOK, res)
++	return
++}
++
++//排课表
++func RangeSchedule(c *gin.Context) {
++	var requestParams request.ScheduleCourseRequest
++	var res response.ScheduleCourseResponse
++	jsons := utils.GetParams(c, requestParams)
++	json.Unmarshal(jsons, &requestParams)
++	if requestParams.TeacherCourseRelationShip == nil || len(requestParams.TeacherCourseRelationShip) < 1 {
++		res.Code = types.ParamInvalid
++		c.JSON(http.StatusOK, res)
++		return
++	}
++	haveInterest := make(map[string]int)
++	haveCourse := make(map[string]string)
++	ans := make(map[string]string)
++	for k, v := range requestParams.TeacherCourseRelationShip {
++		for _, courseId := range v {
++			key := k + "->" + courseId
++			haveInterest[key] = 1
++			haveCourse[courseId] = k
++		}
++	}
++	var sum = 0
++	for k, _ := range requestParams.TeacherCourseRelationShip {
++		used := make(map[string]int)
++		if find(k, haveInterest, haveCourse, used, ans) {
++			sum++
++		}
++	}
++	teacherTeachCourse := make(map[string]string)
++	for courseId, teacherId := range ans {
++		teacherTeachCourse[teacherId] = courseId
++		delete(haveCourse, courseId)
++		delete(requestParams.TeacherCourseRelationShip, teacherId)
++	}
++	for teacherId, _ := range requestParams.TeacherCourseRelationShip {
++		for courseId, _ := range haveCourse {
++			teacherTeachCourse[teacherId] = courseId
++			delete(haveCourse, courseId)
++			break
++		}
++	}
++	res.Data = teacherTeachCourse
++	c.JSON(http.StatusOK, res)
++	return
++}
++
++func find(teacherId string, interest map[string]int, course map[string]string, used map[string]int, ans map[string]string) bool {
++	for courseId, _ := range course {
++		_, ok1 := interest[teacherId+"->"+courseId]
++		_, ok2 := used[courseId]
++		if ok1 && !ok2 {
++			used[courseId] = 1
++			if _, ok := ans[courseId]; !ok || find(ans[courseId], interest, course, used, ans) {
++				ans[courseId] = teacherId
++				return true
++			}
++		}
++	}
++	return false
++}
+Index: step2-member/Register/controller/selectCourse.go
+===================================================================
+diff --git a/step2-member/Register/controller/selectCourse.go b/step2-member/Register/controller/selectCourse.go
+new file mode 100644
+--- /dev/null	
++++ b/step2-member/Register/controller/selectCourse.go	
+@@ -0,0 +1,158 @@
++package controller
++
++import (
++	"Register/myRedis"
++	"Register/request"
++	"Register/response"
++	"Register/types"
++	"Register/utils"
++	"encoding/json"
++	"github.com/gin-gonic/gin"
++	"github.com/jinzhu/gorm"
++	"net/http"
++	"strconv"
++	"strings"
++)
++
++//处理抢课功能的BookCourse请求
++func SelectCourseBookCourse(c *gin.Context) {
++	var requestParams request.BookCourseRequest
++	var res response.BookCourseResponse
++	jsons := utils.GetParams(c, requestParams)
++	json.Unmarshal(jsons, &requestParams)
++	_, errSid := strconv.Atoi(requestParams.StudentID)
++	cid, errCid := strconv.Atoi(requestParams.CourseID)
++	if len(requestParams.StudentID) < 1 || len(requestParams.CourseID) < 1 || errCid != nil || errSid != nil {
++		res.Code = types.ParamInvalid
++		c.JSON(http.StatusOK, res)
++		return
++	}
++	//已经抢过该课程的学生直接返回 下面业务也已经处理这种情况,此处是针对抢客提速的特殊设计
++	result, errSid := myRedis.RedisService.Exists(requestParams.StudentID + "->" + requestParams.CourseID).Result()
++	if result == 1 {
++		res.Code = types.StudentHasCourse
++		c.JSON(http.StatusOK, res)
++		return
++	}
++	var student types.TStudent
++	firstForStudent := utils.Db.Where("user_id = ?", requestParams.StudentID).First(&student)
++	if firstForStudent.Error != nil {
++		res.Code = types.StudentNotExisted
++		c.JSON(http.StatusOK, res)
++		return
++	}
++	if student.IsDel == 1 {
++		res.Code = types.UserHasDeleted
++		c.JSON(http.StatusOK, res)
++		return
++	}
++	//业务上禁止学生多次选同样课程
++	if contains := strings.Contains(student.CourseRecordId, "`"+requestParams.CourseID+"`"); contains {
++		res.Code = types.StudentHasCourse
++		c.JSON(http.StatusOK, res)
++		return
++	}
++	var tCourse types.TCourseCwc
++	tCourse.ID = uint64(cid)
++	firstForCourse := utils.Db.First(&tCourse)
++	if firstForCourse.Error != nil {
++		res.Code = types.CourseNotExisted
++		c.JSON(http.StatusOK, res)
++		return
++	}
++
++	//如果该课程已经被抢完,没必要走下面流程
++	if _, ok := myRedis.CourseCapacityMap.Load(requestParams.CourseID); ok {
++		res.Code = types.CourseNotAvailable
++		c.JSON(http.StatusOK, res)
++		return
++	}
++	//这里可以读redis,如果redis记录该门课程为0,则返回课程已选
++	_, errSid = myRedis.RedisService.Get(requestParams.CourseID).Result()
++	if errSid != nil {
++		myRedis.RedisService.Set(strconv.FormatUint(tCourse.ID, 10), tCourse.Capacity, myRedis.RedisTimeOut)
++	}
++	decr := myRedis.RedisService.Decr(requestParams.CourseID)
++	if decr.Val() < 0 {
++		res.Code = types.CourseNotAvailable
++		c.JSON(http.StatusOK, res)
++		return
++	}
++
++	//此处用事务写
++	errUpdate := utils.Db.Transaction(func(tx *gorm.DB) error {
++		errForCourse := tx.Model(&tCourse).Where("capacity > ?", 0).UpdateColumn("capacity", gorm.Expr("capacity - ?", 1))
++		errForStudent := tx.Model(&student).Update("course_record_id", student.CourseRecordId+"`"+requestParams.CourseID+"`;")
++		if errForCourse.Error != nil || errForStudent.Error != nil {
++			return errForCourse.Error
++		}
++		return nil
++	})
++
++	//更新失败
++	if errUpdate != nil {
++		myRedis.RedisService.Incr(requestParams.CourseID)
++		myRedis.CourseCapacityMap.Delete(requestParams.CourseID)
++		res.Code = types.CourseNotAvailable
++		c.JSON(http.StatusOK, res)
++		return
++	}
++
++	if tCourse.Capacity <= 0 {
++		myRedis.RedisService.Incr(requestParams.CourseID)
++		myRedis.CourseCapacityMap.Store(requestParams.CourseID, true)
++	}
++	myRedis.RedisService.Set(requestParams.StudentID+"->"+requestParams.CourseID, 1, myRedis.RedisTimeOut)
++	res.Code = types.OK
++	c.JSON(http.StatusOK, res)
++	return
++}
++
++//处理抢客功能的course请求
++func SelectCourseGetCourse(c *gin.Context) {
++	var requestParams request.GetStudentCourseRequest
++	var res response.GetStudentCourseResponse
++	jsons := utils.GetParams(c, requestParams)
++	json.Unmarshal(jsons, &requestParams)
++
++	if _, err := strconv.Atoi(requestParams.StudentID); err != nil || len(requestParams.StudentID) < 1 {
++		res.Code = types.ParamInvalid
++		c.JSON(http.StatusOK, res)
++		return
++	}
++	var student types.TStudent
++	first := utils.Db.Where("user_id = ?", requestParams.StudentID).First(&student)
++
++	if first.Error != nil {
++		res.Code = types.StudentNotExisted
++		c.JSON(http.StatusOK, res)
++		return
++	}
++
++	if student.IsDel == 1 {
++		res.Code = types.UserHasDeleted
++		c.JSON(http.StatusOK, res)
++		return
++	}
++
++	if len(student.CourseRecordId) < 1 {
++		res.Code = types.StudentHasNoCourse
++		c.JSON(http.StatusOK, res)
++		return
++	}
++	var data []types.TCourse
++	for _, val := range strings.Split(student.CourseRecordId, ";") {
++		cid, err := strconv.ParseUint(strings.Trim(val, "`"), 10, 64)
++		if err != nil {
++			continue
++		}
++		var tCourse types.TCourseCwc
++		tCourse.ID = cid
++		utils.Db.First(&tCourse)
++		var course = types.TCourse{CourseID: strconv.FormatUint(tCourse.ID, 10), TeacherID: tCourse.TeacherID, Name: tCourse.CourseName}
++		data = append(data, course)
++	}
++	res.Data.CourseList = data
++	c.JSON(http.StatusOK, res)
++	return
++}
+Index: step2-member/Register/request/GetTeacherCourseRequest.go
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>package request\r\n\r\n/**\r\n\t获取老师下所有课程的请求\r\n\t Method：Get\r\n */\r\n\r\ntype GetTeacherCourseRequest struct {\r\n\tTeacherID string\r\n}\r\n
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/step2-member/Register/request/GetTeacherCourseRequest.go b/step2-member/Register/request/GetTeacherCourseRequest.go
+--- a/step2-member/Register/request/GetTeacherCourseRequest.go	
++++ b/step2-member/Register/request/GetTeacherCourseRequest.go	
+@@ -1,10 +1,10 @@
+ package request
+ 
+ /**
+-	获取老师下所有课程的请求
+-	 Method：Get
+- */
++获取老师下所有课程的请求
++ Method：Get
++*/
+ 
+ type GetTeacherCourseRequest struct {
+-	TeacherID string
++	TeacherID string `json:"teacher_id"`
+ }
+Index: step2-member/Register/main.go
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>package main\r\n\r\nimport (\r\n\t\"Register/router\"\r\n\t\"Register/utils\"\r\n\t\"github.com/gin-gonic/gin\"\r\n\t_ \"github.com/go-sql-driver/mysql\"\r\n)\r\n\r\nfunc main() {\r\n\t//定义一个路由\r\n\tr := gin.Default()\r\n\r\n\t//导入模板\r\n\tr.LoadHTMLGlob(\"view/*\")\r\n\r\n\t//导入静态资源\r\n\tr.Static(\"/static\", \"./static\")\r\n\r\n\t//注册路由\r\n\trouter.RegisterRouter(r)\r\n\t//连接字节的数据库\r\n\tutils.InitMysql()\r\n\r\n\t//可以取消表名的复数形式，使得表名和结构体名称一致\r\n\tutils.Db.SingularTable(true)\r\n\r\n\tr.Run(\":8088\")\r\n}\r\n
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/step2-member/Register/main.go b/step2-member/Register/main.go
+--- a/step2-member/Register/main.go	
++++ b/step2-member/Register/main.go	
+@@ -1,13 +1,19 @@
+ package main
+ 
+ import (
++	"Register/myRedis"
+ 	"Register/router"
+ 	"Register/utils"
+ 	"github.com/gin-gonic/gin"
++	"github.com/go-redis/redis"
+ 	_ "github.com/go-sql-driver/mysql"
+ )
+ 
+ func main() {
++
++	//启动redis
++	myRedis.RedisService = redis.NewClient(&redis.Options{Network: myRedis.RedisNetWork, Addr: myRedis.RedisAddr + ":" + myRedis.RedisPort, IdleTimeout: myRedis.RedisTimeOut})
++
+ 	//定义一个路由
+ 	r := gin.Default()
+ 
+Index: step2-member/Register/request/ScheduleCourseRequest.go
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>package request\r\n/**\r\n\t排课求解器，使老师绑定课程的最优解， 老师有且只能绑定一个课程\r\n \tMethod： Post\r\n */\r\ntype ScheduleCourseRequest struct {\r\n\tTeacherCourseRelationShip map[string][]string // key 为 teacherID , val 为老师期望绑定的课程 courseID 数组\r\n}\r\n
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/step2-member/Register/request/ScheduleCourseRequest.go b/step2-member/Register/request/ScheduleCourseRequest.go
+--- a/step2-member/Register/request/ScheduleCourseRequest.go	
++++ b/step2-member/Register/request/ScheduleCourseRequest.go	
+@@ -1,8 +1,9 @@
+ package request
++
+ /**
+ 	排课求解器，使老师绑定课程的最优解， 老师有且只能绑定一个课程
+  	Method： Post
+- */
++*/
+ type ScheduleCourseRequest struct {
+-	TeacherCourseRelationShip map[string][]string // key 为 teacherID , val 为老师期望绑定的课程 courseID 数组
++	TeacherCourseRelationShip map[string][]string `json:"teacher_course_relation_ship"` // key 为 teacherID , val 为老师期望绑定的课程 courseID 数组
+ }
+Index: step2-member/Register/request/GetCourseRequest.go
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>package request\r\n/**\r\n\t获取课程请求\r\n\tMethod: Get\r\n */\r\n\r\ntype GetCourseRequest struct {\r\n\tCourseID string\r\n}\r\n
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/step2-member/Register/request/GetCourseRequest.go b/step2-member/Register/request/GetCourseRequest.go
+--- a/step2-member/Register/request/GetCourseRequest.go	
++++ b/step2-member/Register/request/GetCourseRequest.go	
+@@ -1,9 +1,10 @@
+ package request
++
+ /**
+-	获取课程请求
+-	Method: Get
+- */
++获取课程请求
++Method: Get
++*/
+ 
+ type GetCourseRequest struct {
+-	CourseID string
++	CourseID string `json:"course_id"`
+ }

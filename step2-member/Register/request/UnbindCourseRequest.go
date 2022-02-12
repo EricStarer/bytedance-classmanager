@@ -5,6 +5,6 @@ package request
  */
 
 type UnbindCourseRequest struct {
-	CourseID  string
-	TeacherID string
+	CourseID  string `json:"course_id"`
+	TeacherID string `json:"teacher_id"`
 }
