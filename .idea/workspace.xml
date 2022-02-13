@@ -4,8 +4,22 @@
     <option name="autoReloadType" value="ALL" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="b441cb28-26a9-4192-b488-59d6f99b7545" name="Changes" comment="添加选课和抢课模块，初步完成">
+    <list default="true" id="b441cb28-26a9-4192-b488-59d6f99b7545" name="Changes" comment="init">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/step2-member/Register/controller/author.go" beforeDir="false" afterPath="$PROJECT_DIR$/step2-member/Register/controller/author.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/step2-member/Register/go.mod" beforeDir="false" afterPath="$PROJECT_DIR$/step2-member/Register/go.mod" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/step2-member/Register/go.sum" beforeDir="false" afterPath="$PROJECT_DIR$/step2-member/Register/go.sum" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/step2-member/Register/main.go" beforeDir="false" afterPath="$PROJECT_DIR$/step2-member/Register/main.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/step2-member/Register/request/BindCourseRequest.go" beforeDir="false" afterPath="$PROJECT_DIR$/step2-member/Register/request/BindCourseRequest.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/step2-member/Register/request/GetCourseRequest.go" beforeDir="false" afterPath="$PROJECT_DIR$/step2-member/Register/request/GetCourseRequest.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/step2-member/Register/request/GetStudentCourseRequest.go" beforeDir="false" afterPath="$PROJECT_DIR$/step2-member/Register/request/GetStudentCourseRequest.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/step2-member/Register/request/GetTeacherCourseRequest.go" beforeDir="false" afterPath="$PROJECT_DIR$/step2-member/Register/request/GetTeacherCourseRequest.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/step2-member/Register/request/ScheduleCourseRequest.go" beforeDir="false" afterPath="$PROJECT_DIR$/step2-member/Register/request/ScheduleCourseRequest.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/step2-member/Register/request/UnbindCourseRequest.go" beforeDir="false" afterPath="$PROJECT_DIR$/step2-member/Register/request/UnbindCourseRequest.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/step2-member/Register/response/ScheduleCourseResponse.go" beforeDir="false" afterPath="$PROJECT_DIR$/step2-member/Register/response/ScheduleCourseResponse.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/step2-member/Register/router/router.go" beforeDir="false" afterPath="$PROJECT_DIR$/step2-member/Register/router/router.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/step2-member/Register/types/types.go" beforeDir="false" afterPath="$PROJECT_DIR$/step2-member/Register/types/types.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/step2-member/Register/utils/getParams.go" beforeDir="false" afterPath="$PROJECT_DIR$/step2-member/Register/utils/getParams.go" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -31,7 +45,6 @@
     <property name="WebServerToolWindowFactoryState" value="false" />
     <property name="configurable..is.expanded" value="false" />
     <property name="configurable.GoLibrariesConfigurable.is.expanded" value="true" />
-    <property name="go.format.on.save.advertiser.fired" value="true" />
     <property name="go.formatter.settings.were.checked" value="true" />
     <property name="go.import.settings.migrated" value="true" />
     <property name="go.modules.go.list.on.any.changes.was.set" value="true" />
@@ -92,8 +105,7 @@
   </component>
   <component name="VcsManagerConfiguration">
     <MESSAGE value="init" />
-    <MESSAGE value="添加选课和抢课模块，初步完成" />
-    <option name="LAST_COMMIT_MESSAGE" value="添加选课和抢课模块，初步完成" />
+    <option name="LAST_COMMIT_MESSAGE" value="init" />
   </component>
   <component name="VgoProject">
     <integration-enabled>true</integration-enabled>
