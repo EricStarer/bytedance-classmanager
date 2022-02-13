@@ -1,8 +1,9 @@
 package request
+
 /**
-	课程请求
- */
+课程请求
+*/
 type BookCourseRequest struct {
-	StudentID string `json:"student_id"`
-	CourseID  string `json:"course_id"`
+	StudentID string
+	CourseID  string
 }
