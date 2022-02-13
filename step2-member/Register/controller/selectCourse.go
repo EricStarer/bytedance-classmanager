@@ -15,16 +15,23 @@ import (
 	"strings"
 )
 
+/*
+	type BookCourseRequest struct {
+    	StudentID string
+    	CourseID  string
+}
+*/
 //处理抢课功能的BookCourse请求
 func SelectCourseBookCourse(c *gin.Context) {
 	var requestParams request.BookCourseRequest
 	var res response.BookCourseResponse
 	jsons := utils.GetParams(c, requestParams)
 	json.Unmarshal(jsons, &requestParams)
-	_, errSid := strconv.Atoi(requestParams.StudentID)
+	_, errSid := strconv.Atoi(requestParams.StudentID) // 字符串转数字
 	cid, errCid := strconv.Atoi(requestParams.CourseID)
 	fmt.Println(requestParams.StudentID)
 	fmt.Println(requestParams.CourseID)
+
 	if len(requestParams.StudentID) < 1 || len(requestParams.CourseID) < 1 || errCid != nil || errSid != nil {
 		res.Code = types.ParamInvalid
 		c.JSON(http.StatusOK, res)
