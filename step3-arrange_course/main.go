@@ -1,11 +1,11 @@
 package main
 
 import (
-	"bytedance-classmanager/src/types"
 	"fmt"
 	"github.com/gin-gonic/gin"
 	"github.com/jinzhu/gorm"
 	_ "github.com/jinzhu/gorm/dialects/mysql"
+	"gocode/bytedance-classmanager/step3-arrange_course/types"
 	"net/http"
 	"strconv"
 )
