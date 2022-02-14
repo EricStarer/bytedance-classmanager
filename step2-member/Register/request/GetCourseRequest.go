@@ -1,9 +1,10 @@
 package request
+
 /**
-	获取课程请求
-	Method: Get
- */
+获取课程请求
+Method: Get
+*/
 
 type GetCourseRequest struct {
-	CourseID string `json:"course_id"`
+	CourseID string
 }
