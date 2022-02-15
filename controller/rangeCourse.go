@@ -44,12 +44,15 @@ func Course_get(c *gin.Context) {
 	var u types.Course
 	var id string
 	c.ShouldBindJSON(&u) //别用错方法，找了半天bug
+
 	if u.CourseID == "" {
 		id = c.Query("CourseID")
 	} else {
 		id = u.CourseID
 	}
-	if id == "" { //参数不合法
+	new_id, not_num := strconv.Atoi(id)
+	fmt.Println(id)
+	if id == "" || not_num != nil { //参数不合法
 		resp := new(response.GetCourseResponse)
 		resp.Code = types.ParamInvalid
 		resp.Data.CourseID = id
@@ -58,8 +61,9 @@ func Course_get(c *gin.Context) {
 		c.JSON(http.StatusOK, resp)
 		return
 	}
-	utils.Db.First(&u, id) //查询
-	if u.NAME == "" {      //如果没查询到就返回Errno,CourseNotExisted
+	utils.Db.First(&u, new_id) //查询
+	fmt.Println(u)
+	if u.NAME == "" { //如果没查询到就返回Errno,CourseNotExisted
 		resp := new(response.GetCourseResponse)
 		resp.Code = types.CourseNotExisted
 		resp.Data.CourseID = id
@@ -81,15 +85,16 @@ func Bind_Course(c *gin.Context) {
 	var u, t types.Course
 	c.ShouldBindJSON(&u) //gin，参数绑定
 	course_id := u.CourseID
+	new_course_id, not_num := strconv.Atoi(u.CourseID)
 	teacher_id := u.TeacherId
-	if teacher_id == "" || course_id == "" { //有空值，参数不合法
+	if teacher_id == "" || course_id == "" || not_num != nil { //有空值，参数不合法
 		c.JSON(http.StatusOK, gin.H{
 			"Code": types.ParamInvalid,
 		})
 		return
 	}
-	utils.Db.First(&t, course_id) //先查询对应课程的记录
-	if t.NAME == "" {             //课程不存在
+	utils.Db.First(&t, new_course_id) //先查询对应课程的记录
+	if t.NAME == "" {                 //课程不存在
 		c.JSON(http.StatusOK, gin.H{
 			"Code": types.CourseNotExisted,
 		})
@@ -114,14 +119,15 @@ func UnBind_course(c *gin.Context) {
 	var u, t types.Course
 	c.ShouldBindJSON(&u)
 	course_id := u.CourseID
-	if u.TeacherId == "" || course_id == "" { //有空值，参数不合法
+	new_course_id, not_num := strconv.Atoi(u.CourseID)
+	if u.TeacherId == "" || course_id == "" || not_num != nil { //有空值，参数不合法
 		c.JSON(http.StatusOK, gin.H{
 			"Code": types.ParamInvalid,
 		})
 		return
 	}
-	utils.Db.First(&t, course_id) //查询对应课程
-	if t.NAME == "" {             //不存在这个课程
+	utils.Db.First(&t, new_course_id) //查询对应课程
+	if t.NAME == "" {                 //不存在这个课程
 		c.JSON(http.StatusOK, gin.H{
 			"Code": types.CourseNotExisted,
 		})
@@ -142,7 +148,8 @@ func UnBind_course(c *gin.Context) {
 //查询老师下的所有课程（未完成)，CourseList []*TCourse什么意思？
 //已完成
 func Teacher_course_get(c *gin.Context) {
-	var u types.Course     //接收request中的数据
+	var u types.Course //接收request中的数据
+	var t types.TTeacher
 	var res []types.Course //根据teacher_id得到记录的结果集
 	c.ShouldBindJSON(&u)   //参数绑定
 	if u.TeacherId == "" { //get传参
@@ -152,6 +159,22 @@ func Teacher_course_get(c *gin.Context) {
 	if u.TeacherId == "" { //参数不合法
 		resp := new(response.GetTeacherCourseResponse)
 		resp.Code = types.ParamInvalid
+		resp.Data.CourseList = nil
+		c.JSON(http.StatusOK, resp)
+		return
+	}
+	//判断teacher_id是否存在
+	utils.Db.Raw("select * from t_teacher where user_id=?", u.TeacherId).Find(&t)
+	if t.TMember.UserID == "" {
+		resp := new(response.GetTeacherCourseResponse)
+		resp.Code = types.UserNotExisted
+		resp.Data.CourseList = nil
+		c.JSON(http.StatusOK, resp)
+		return
+	}
+	if t.IsDel == 1 {
+		resp := new(response.GetTeacherCourseResponse)
+		resp.Code = types.UserHasDeleted
 		resp.Data.CourseList = nil
 		c.JSON(http.StatusOK, resp)
 		return
@@ -200,8 +223,14 @@ func Schedule(c *gin.Context) { //匈牙利算法
 	TeacherCourseRelationShip = u.TeacherCourseRelationShip
 	res, st = make(map[string]string), make(map[string]string)
 	resp := new(response.ScheduleCourseResponse)
-	resp.Code = types.OK
 	resp.Data = res
+	if TeacherCourseRelationShip != nil {
+		resp.Code = types.OK
+	} else {
+		resp.Code = types.ParamInvalid
+		c.JSON(http.StatusOK, resp)
+		return
+	}
 	for k, _ := range TeacherCourseRelationShip {
 		if k == "" { //如果teacherid是空值
 			resp.Code = types.ParamInvalid

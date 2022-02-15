@@ -48,6 +48,7 @@ func SelectCourseBookCourse(c *gin.Context)  {
 
 	var student types.TStudent
 	firstForStudent := utils.Db.Where("user_id = ?", requestParams.StudentID).First(&student)
+
 	if firstForStudent.Error!=nil{
 		res.Code=types.StudentNotExisted
 		c.JSON(http.StatusOK,res)
@@ -57,7 +58,6 @@ func SelectCourseBookCourse(c *gin.Context)  {
 	var tCourse types.Course
 	tCourse.ID=cid
 	firstForCourse := utils.Db.First(&tCourse)
-	fmt.Println(tCourse.ID,tCourse.CAP)
 	if firstForCourse.Error!=nil{
 		res.Code=types.CourseNotExisted
 		c.JSON(http.StatusOK,res)
@@ -95,13 +95,11 @@ func SelectCourseBookCourse(c *gin.Context)  {
 	}
 
 	//此处用事务写
-	var rowAffected int64
 	errUpdate := utils.Db.Transaction(func(tx *gorm.DB) error {
 		record:="%`"+requestParams.CourseID+"`%"
 		errForCourse := tx.Model(&tCourse).Where("cap > ? ", 0).UpdateColumn("cap", gorm.Expr("cap - ?", 1))
 
-		rowAffected = errForCourse.RowsAffected
-		if errForCourse.Error !=nil {
+		if errForCourse.Error !=nil || errForCourse.RowsAffected<1{
 			return errors.New(myRedis.ErrorForUpdateStore)
 		}
 
@@ -135,12 +133,7 @@ func SelectCourseBookCourse(c *gin.Context)  {
 		return
 	}
 
-	if rowAffected==0{
-		myRedis.RedisService.Incr(requestParams.CourseID)
-		res.Code=types.CourseNotAvailable
-		c.JSON(http.StatusOK,res)
-		return
-	}
+
 
 
 	fmt.Println(requestParams.CourseID,requestParams.StudentID)
@@ -152,7 +145,6 @@ func SelectCourseBookCourse(c *gin.Context)  {
 
 //处理抢客功能的course请求
 func SelectCourseGetCourse(c *gin.Context)  {
-	fmt.Println("gggggggggggggggggggggggggggg")
 	var requestParams request.GetStudentCourseRequest
 	var res response.GetStudentCourseResponse
 	jsons :=utils.GetParams(c,requestParams)
