@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="/static/css/register.css">
+    <title>Document</title>
+</head>
+<body>
+<div style="width:100%;text-align:center">
+    <form name="form" action="http://localhost:8088/api/v1/member/create" class="register" method="post">
+        <p>注册</p>
+        <input type="text" name="nick_name" placeholder="用户昵称">
+        <input id="type" name="type_user" type="text" list="typelist" placeholder="请选择用户信息">
+        <datalist id="typelist">
+            　　<option>student</option>
+            　　<option>teacher</option>
+                <option>principal</option>
+        </datalist>
+
+        <input type="text" name="username" placeholder="用户名">
+        <input type="password" name="password" placeholder="用户密码">
+        <input type="submit" class="btn" href="javascript:form.submit()" value="注  册">
+    </form>
+</div>
+
+
+</body>
+</html>
