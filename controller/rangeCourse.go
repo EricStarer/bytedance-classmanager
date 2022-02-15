@@ -19,11 +19,17 @@ var res map[string]string
 //创建课程函数
 func Course_create(c *gin.Context) {
 	var u types.Course
+	resp := new(response.CreateCourseResponse)
 	c.ShouldBindJSON(&u)
+	if u.NAME == "" || u.CAP == 0 { //参数不合法
+		resp.Code = types.ParamInvalid
+		resp.Data.CourseID = ""
+		c.JSON(http.StatusOK, resp)
+		return
+	}
 	utils.Db.Create(&u)
 	u.CourseID = strconv.Itoa(u.ID)
 	fmt.Printf("%#v\n", u)
-	resp := new(response.CreateCourseResponse)
 	resp.Code = types.OK
 	resp.Data.CourseID = u.CourseID
 	//设置 redis key = couresId , val = cap
@@ -36,8 +42,22 @@ func Course_create(c *gin.Context) {
 //获取课程信息
 func Course_get(c *gin.Context) {
 	var u types.Course
-	c.ShouldBindJSON(&u)   //别用错方法，找了半天bug
-	id := u.CourseID       //将id转为整型，因为数据库中id字段为整型
+	var id string
+	c.ShouldBindJSON(&u) //别用错方法，找了半天bug
+	if u.CourseID == "" {
+		id = c.Query("CourseID")
+	} else {
+		id = u.CourseID
+	}
+	if id == "" { //参数不合法
+		resp := new(response.GetCourseResponse)
+		resp.Code = types.ParamInvalid
+		resp.Data.CourseID = id
+		resp.Data.Name = ""
+		resp.Data.TeacherID = ""
+		c.JSON(http.StatusOK, resp)
+		return
+	}
 	utils.Db.First(&u, id) //查询
 	if u.NAME == "" {      //如果没查询到就返回Errno,CourseNotExisted
 		resp := new(response.GetCourseResponse)
@@ -58,13 +78,26 @@ func Course_get(c *gin.Context) {
 
 //绑定课程
 func Bind_Course(c *gin.Context) {
-	var u types.Course
-	c.ShouldBindJSON(&u)    //gin，参数绑定
-	course_id := u.CourseID //id转为数字，理由同上
+	var u, t types.Course
+	c.ShouldBindJSON(&u) //gin，参数绑定
+	course_id := u.CourseID
 	teacher_id := u.TeacherId
-	utils.Db.First(&u, course_id) //先查询对应课程的记录
-	if u.TeacherId == "" {        //该课程还未绑定老师，直接更新记录进行绑定
-		utils.Db.Debug().Model(&u).Update("TeacherId", teacher_id) //仅修改部分
+	if teacher_id == "" || course_id == "" { //有空值，参数不合法
+		c.JSON(http.StatusOK, gin.H{
+			"Code": types.ParamInvalid,
+		})
+		return
+	}
+	utils.Db.First(&t, course_id) //先查询对应课程的记录
+	if t.NAME == "" {             //课程不存在
+		c.JSON(http.StatusOK, gin.H{
+			"Code": types.CourseNotExisted,
+		})
+		return
+	}
+	fmt.Println(t)
+	if t.TeacherId == "" { //该课程还未绑定老师，直接更新记录进行绑定
+		utils.Db.Debug().Model(&t).Update("TeacherId", teacher_id) //仅修改部分
 		c.JSON(http.StatusOK, gin.H{
 			"Code": types.OK,
 		})
@@ -78,10 +111,28 @@ func Bind_Course(c *gin.Context) {
 //解绑，有疑问:异常情况
 //已完成
 func UnBind_course(c *gin.Context) {
-	var u types.Course
+	var u, t types.Course
 	c.ShouldBindJSON(&u)
 	course_id := u.CourseID
-	utils.Db.First(&u, course_id)                      //查询对应课程
+	if u.TeacherId == "" || course_id == "" { //有空值，参数不合法
+		c.JSON(http.StatusOK, gin.H{
+			"Code": types.ParamInvalid,
+		})
+		return
+	}
+	utils.Db.First(&t, course_id) //查询对应课程
+	if t.NAME == "" {             //不存在这个课程
+		c.JSON(http.StatusOK, gin.H{
+			"Code": types.CourseNotExisted,
+		})
+		return
+	}
+	if t.TeacherId == "" {
+		c.JSON(http.StatusOK, gin.H{
+			"Code": types.CourseNotBind,
+		})
+		return
+	}
 	utils.Db.Debug().Model(&u).Update("TeacherId", "") //仅修改部分,teacher_id字段修改为空值
 	c.JSON(http.StatusOK, gin.H{
 		"Code": types.OK,
@@ -91,9 +142,20 @@ func UnBind_course(c *gin.Context) {
 //查询老师下的所有课程（未完成)，CourseList []*TCourse什么意思？
 //已完成
 func Teacher_course_get(c *gin.Context) {
-	var u types.Course                                     //接收request中的数据
-	var res []types.Course                                 //根据teacher_id得到记录的结果集
-	c.ShouldBindJSON(&u)                                   //参数绑定
+	var u types.Course     //接收request中的数据
+	var res []types.Course //根据teacher_id得到记录的结果集
+	c.ShouldBindJSON(&u)   //参数绑定
+	if u.TeacherId == "" { //get传参
+		u.TeacherId = c.Query("TeacherID")
+	}
+	fmt.Println(u)
+	if u.TeacherId == "" { //参数不合法
+		resp := new(response.GetTeacherCourseResponse)
+		resp.Code = types.ParamInvalid
+		resp.Data.CourseList = nil
+		c.JSON(http.StatusOK, resp)
+		return
+	}
 	utils.Db.Where("teacher_id=?", u.TeacherId).Find(&res) //查询
 	resp := new(response.GetTeacherCourseResponse)         //response结构体
 	resp.Code = types.OK
