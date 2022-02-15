@@ -9,6 +9,7 @@ import (
 	"mergeVersion1/types"
 	"mergeVersion1/utils"
 	"net/http"
+	"strings"
 )
 
 func LoginHandler(c *gin.Context) {
@@ -87,6 +88,9 @@ func WhoamiHandler(c *gin.Context) {
 func LoginQuery(loginRequest request.LoginRequest) types.TMember {
 	username := loginRequest.Username
 	password := loginRequest.Password
+	if strings.TrimSpace(username) == "" || strings.TrimSpace(password) == "" {
+		return types.TMember{}
+	}
 	//按顺序查询三个表
 	return QueryMember(username, password)
 }
