@@ -1,0 +1,8 @@
+time="2022-02-15T23:49:52+08:00" level=info msg="| 200 |     70.8284ms |             ::1 | POST | /api/v1/auth/login |"
+time="2022-02-15T23:49:54+08:00" level=info msg="| 200 |     67.7601ms |             ::1 | POST | /api/v1/auth/login |"
+time="2022-02-15T23:51:46+08:00" level=info msg="| 200 |     81.2005ms |             ::1 | POST | /api/v1/auth/login |"
+time="2022-02-15T23:51:46+08:00" level=info msg="| 200 |     82.4399ms |             ::1 | POST | /api/v1/auth/login |"
+time="2022-02-15T23:51:47+08:00" level=info msg="| 200 |     80.3417ms |             ::1 | POST | /api/v1/auth/login |"
+time="2022-02-15T23:51:47+08:00" level=info msg="| 200 |     82.1803ms |             ::1 | POST | /api/v1/auth/login |"
+time="2022-02-15T23:52:05+08:00" level=info msg="| 200 |     83.8863ms |             ::1 | POST | /api/v1/member/delete |"
+time="2022-02-15T23:52:06+08:00" level=info msg="| 200 |     82.5109ms |             ::1 | POST | /api/v1/member/delete |"

@@ -17,6 +17,9 @@ func main() {
 	//定义一个路由
 	r := gin.Default()
 
+	//添加日志文件
+	r.Use(utils.LoggerToFile())
+
 	//导入模板
 	r.LoadHTMLGlob("view/*")
 
