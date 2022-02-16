@@ -45,7 +45,7 @@ func LogoutHandler(c *gin.Context) {
 	cookie, err := c.Cookie("camp-session")
 	var logoutResponse response.LogoutResponse
 	if err != nil {
-		logoutResponse.Code = types.UnknownError
+		logoutResponse.Code = types.LoginRequired
 		c.JSON(http.StatusUnauthorized, logoutResponse)
 		return
 	}
