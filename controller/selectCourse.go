@@ -130,7 +130,7 @@ func SelectCourseBookCourse(c *gin.Context)  {
 		//再记录记录选课数据
 		record := "`"+requestParams.CourseID+"`;"
 		errForStudent := tx.Exec("UPDATE t_student SET course_record_id = CONCAT(course_record_id,?) WHERE user_id = ?",record,requestParams.StudentID)
-		if errForStudent.Error !=nil{
+		if errForStudent.Error !=nil || errForStudent.RowsAffected<1{
 			return errors.New(myRedis.ErrorForUpdateRecord)
 		}
 		return nil
