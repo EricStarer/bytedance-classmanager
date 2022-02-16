@@ -37,8 +37,7 @@ func SelectCourseBookCourse(c *gin.Context)  {
 	}
 
 	//step2 判断学生是否已抢到该课程
-	hasSuccess, _ := myRedis.RedisService.Exists(requestParams.StudentID + "->" + requestParams.CourseID).Result()
-	if hasSuccess == 1{
+	if	hasSuccess, _ := myRedis.RedisService.Exists(requestParams.StudentID + "->" + requestParams.CourseID).Result(); hasSuccess == 1{
 		res.Code=types.StudentHasCourse
 		c.JSON(http.StatusOK,res)
 		return
@@ -94,7 +93,9 @@ func SelectCourseBookCourse(c *gin.Context)  {
 			return
 		}
 		myRedis.RedisService.SetNX(requestParams.CourseID,tCourse.CAP,myRedis.RedisTimeOutForKeep)
+		myRedis.RedisService.SetNX("ALL"+requestParams.CourseID,tCourse.CAP,myRedis.RedisTimeOutForKeep)
 	}
+
 
 	//step6 利用redis实时监控课程容量
 	if myRedis.RedisService.Decr(requestParams.CourseID).Val() <0 {
@@ -107,52 +108,11 @@ func SelectCourseBookCourse(c *gin.Context)  {
 		return
 	}
 
-
-
 	//step7 进入抢客流程此处用事务写
-	errUpdate := utils.Db.Transaction(func(tx *gorm.DB) error {
-		//先减容量,确保有容量
-		errForCourse := tx.Model(&tCourse).Where("cap > ? ", 0).UpdateColumn("cap", gorm.Expr("cap - ?", 1))
-		if errForCourse.Error !=nil || errForCourse.RowsAffected<1{
-			return errors.New(myRedis.ErrorForUpdateStore)
-		}
-
-		//再进防冲撞表确保,数据可写入
-		var tCrush types.TCourseCrush
-		tCrush.Uid=requestParams.StudentID+"."+requestParams.CourseID
-		errForCrush  := tx.Create(&tCrush)
-		if errForCrush.Error !=nil{
-			return errors.New(myRedis.ErrorForUpdateRecord)
-		}
-
-		record := "`"+requestParams.CourseID+"`;"
-		errForStudent := tx.Exec("UPDATE t_student SET course_record_id = CONCAT(course_record_id,?) WHERE user_id = ?",record,requestParams.StudentID)
-		if errForStudent.Error !=nil || errForStudent.RowsAffected<1{
-			return errors.New(myRedis.ErrorForUpdateRecord)
-		}
-		return nil
-	})
-
-	if errUpdate == nil {
-		myRedis.RedisService.Set(requestParams.StudentID+"->"+requestParams.CourseID, 1, myRedis.RedisTimeOutForKeep)
-		res.Code = types.OK
-		c.JSON(http.StatusOK, res)
-		return
-	}
-
-	//更新失败
-	if errUpdate.Error() == myRedis.ErrorForUpdateStore {
-		myRedis.RedisService.Incr(requestParams.CourseID)
-		if _, ok := myRedis.CourseCapacityMap.Load(requestParams.CourseID);ok{
-			myRedis.CourseCapacityMap.Delete(requestParams.CourseID)
-		}
-		res.Code=types.UnknownError
-		c.JSON(http.StatusOK,res)
-		return
-	}
-
-	//已抢到
-	if errUpdate.Error() == myRedis.ErrorForUpdateRecord{
+	//先进防冲撞表,确保数据可写入
+	result, _ := myRedis.RedisService.SetNX(requestParams.StudentID+"->"+requestParams.CourseID,1,myRedis.RedisTimeOutForKeep).Result()
+	//重复抢课程
+	if !result{
 		myRedis.RedisService.Incr(requestParams.CourseID)
 		if _, ok := myRedis.CourseCapacityMap.Load(requestParams.CourseID);ok{
 			myRedis.CourseCapacityMap.Delete(requestParams.CourseID)
@@ -161,7 +121,51 @@ func SelectCourseBookCourse(c *gin.Context)  {
 		c.JSON(http.StatusOK,res)
 		return
 	}
+	errUpdate := utils.Db.Transaction(func(tx *gorm.DB) error {
+		//先减容量,确保有容量
+		errForCourse := tx.Model(&tCourse).Where("cap > ? ", 0).UpdateColumn("cap", gorm.Expr("cap - ?", 1))
+		if errForCourse.Error !=nil || errForCourse.RowsAffected<1{
+			return errors.New(myRedis.ErrorForUpdateStore)
+		}
+		//再记录记录选课数据
+		record := "`"+requestParams.CourseID+"`;"
+		errForStudent := tx.Exec("UPDATE t_student SET course_record_id = CONCAT(course_record_id,?) WHERE user_id = ?",record,requestParams.StudentID)
+		if errForStudent.Error !=nil{
+			return errors.New(myRedis.ErrorForUpdateRecord)
+		}
+		return nil
+	})
 
+	if errUpdate == nil {
+		res.Code = types.OK
+		c.JSON(http.StatusOK, res)
+		return
+	}
+
+	//数据落库失败了,删除其抢课成功标记
+	myRedis.RedisService.Del(requestParams.StudentID + "->" + requestParams.CourseID)
+
+	//更新选课记录失败
+	if errUpdate.Error() == myRedis.ErrorForUpdateRecord {
+		myRedis.RedisService.Incr(requestParams.CourseID)
+		if _, ok := myRedis.CourseCapacityMap.Load(requestParams.CourseID); ok {
+			myRedis.CourseCapacityMap.Delete(requestParams.CourseID)
+		}
+		res.Code = types.UnknownError
+		c.JSON(http.StatusOK, res)
+		return
+	}
+
+	//更新库存记录失败
+	if errUpdate.Error() == myRedis.ErrorForUpdateStore {
+		myRedis.RedisService.Incr(requestParams.CourseID)
+		if _, ok := myRedis.CourseCapacityMap.Load(requestParams.CourseID); ok {
+			myRedis.CourseCapacityMap.Delete(requestParams.CourseID)
+		}
+		res.Code = types.UnknownError
+		c.JSON(http.StatusOK, res)
+		return
+	}
 
 }
 

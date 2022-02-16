@@ -1,13 +1,15 @@
 package controller
 
 import (
+	"encoding/json"
+	"errors"
+	"fmt"
+	"github.com/gin-gonic/gin"
+	"github.com/jinzhu/gorm"
 	"mergeVersion1/request"
 	"mergeVersion1/response"
 	"mergeVersion1/types"
 	"mergeVersion1/utils"
-	"encoding/json"
-	"fmt"
-	"github.com/gin-gonic/gin"
 	"net/http"
 	"strconv"
 )
@@ -64,7 +66,7 @@ func checkPermission(c *gin.Context) bool {
 	cookie, err := c.Cookie("camp-session")
 	var member types.TMember
 	json.Unmarshal([]byte(cookie), &member)
-	if err != nil || cookie == "" ||member.UserType!=types.Admin{
+	if err != nil || cookie == "" || member.UserType!=types.Admin{
 		return false
 	}
 	return true
@@ -90,7 +92,7 @@ func MemberCreatePost(c *gin.Context) {
 		return
 	}
 	var generateId types.GenerateId
-	generateId=types.GenerateId{IsDel: 0,UserType: createMember.UserType,UserName: createMember.Username}
+	generateId=types.GenerateId{IsDel: 0,UserType: createMember.UserType,UserName: createMember.Username,Nickname: createMember.Nickname}
 	create := utils.Db.Create(&generateId)
 	if create.Error!=nil{
 		res.Code=types.UserHasExisted
@@ -197,19 +199,10 @@ func MemberGetList(c *gin.Context)  {
 	utils.Db.Where("is_del=?", 0).Limit(limit).Offset(offset).Find(&list)
 	for _,v := range list {
 		var member types.TMember
-		if v.UserType == types.Admin{
-			var admin types.TAdmin
-			utils.Db.Where("user_id = ?", v.ID).First(&admin)
-			member=admin.TMember
-		}else if v.UserType == types.Student{
-			var student types.TStudent
-			utils.Db.Where("user_id = ?", v.ID).First(&student)
-			member=student.TMember
-		}else if v.UserType == types.Teacher{
-			var teacher types.TTeacher
-			utils.Db.Where("user_id = ?", v.ID).First(&teacher)
-			member=teacher.TMember
-		}
+		member.UserID=strconv.FormatUint(v.ID,10)
+		member.UserType=v.UserType
+		member.Username=v.UserName
+		member.Nickname=v.Nickname
 		data=append(data,member)
 	}
 	if len(data)>0 {
@@ -247,17 +240,41 @@ func MemberUpdate(c *gin.Context){
 		c.JSON(http.StatusOK,res)
 		return
 	}
-	res.Code=types.OK
+
 	//最好用事务去写
+	var err error
 	if generateId.UserType == types.Admin{
-		utils.Db.Model(&types.TAdmin{}).Where("user_id = ?",generateId.ID).Update("nick_name",paramRequest.Nickname)
-		utils.Db.Model(&types.GenerateId{}).Where("id = ?",generateId.ID).Update("nick_name",paramRequest.Nickname)
+		err = utils.Db.Transaction(func(tx *gorm.DB) error {
+			updateForAdm := utils.Db.Model(&types.TAdmin{}).Where("user_id = ?", generateId.ID).Update("nick_name", paramRequest.Nickname)
+			updateForGen := utils.Db.Model(&types.GenerateId{}).Where("id = ?", generateId.ID).Update("nick_name", paramRequest.Nickname)
+			if updateForAdm.Error!=nil || updateForGen.Error!=nil || updateForGen.RowsAffected<1 || updateForAdm.RowsAffected<1{
+				return errors.New("update error")
+			}
+			return nil
+		})
 	}else if generateId.UserType == types.Student{
-		utils.Db.Model(&types.TStudent{}).Where("user_id = ?",generateId.ID).Update("nick_name",paramRequest.Nickname)
-		utils.Db.Model(&types.GenerateId{}).Where("id = ?",generateId.ID).Update("nick_name",paramRequest.Nickname)
+		err = utils.Db.Transaction(func(tx *gorm.DB) error {
+			updateForStu :=utils.Db.Model(&types.TStudent{}).Where("user_id = ?",generateId.ID).Update("nick_name",paramRequest.Nickname)
+			updateForGen :=utils.Db.Model(&types.GenerateId{}).Where("id = ?",generateId.ID).Update("nick_name",paramRequest.Nickname)
+			if updateForGen.Error !=nil || updateForStu.Error !=nil || updateForStu.RowsAffected<1 || updateForGen.RowsAffected<1{
+				return errors.New("update error")
+			}
+			return nil
+		})
 	}else if generateId.UserType == types.Teacher{
-		utils.Db.Model(&types.TTeacher{}).Where("user_id = ?",generateId.ID).Update("nick_name",paramRequest.Nickname)
-		utils.Db.Model(&types.GenerateId{}).Where("id = ?",generateId.ID).Update("nick_name",paramRequest.Nickname)
+		err = utils.Db.Transaction(func(tx *gorm.DB) error {
+			updateForTea := utils.Db.Model(&types.TTeacher{}).Where("user_id = ?",generateId.ID).Update("nick_name",paramRequest.Nickname)
+			updateForGen := utils.Db.Model(&types.GenerateId{}).Where("id = ?",generateId.ID).Update("nick_name",paramRequest.Nickname)
+			if updateForGen.Error !=nil || updateForTea.Error !=nil || updateForGen.RowsAffected<1 || updateForTea.RowsAffected<1{
+				return errors.New("update error")
+			}
+			return nil
+		})
+	}
+	if err != nil{
+		res.Code=types.UnknownError
+	}else {
+		res.Code = types.OK
 	}
 	c.JSON(http.StatusOK,res)
 	return
@@ -288,18 +305,42 @@ func MemberDelete(c *gin.Context){
 		c.JSON(http.StatusOK,res);
 		return
 	}
-	//待改进,用事务来处理
+
+	var errForDel error
 	if generateId.UserType == types.Admin{
-		utils.Db.Model(&generateId).Update("is_del",1)
-		utils.Db.Model(&types.TAdmin{}).Where("user_id = ?",generateId.ID).Update("is_del",1)
+		errForDel =utils.Db.Transaction(func(tx *gorm.DB) error {
+			updateForGen := utils.Db.Model(&generateId).Update("is_del",1)
+			updateForAdm := utils.Db.Model(&types.TAdmin{}).Where("user_id = ?",generateId.ID).Update("is_del",1)
+			if updateForGen.Error != nil || updateForAdm.Error!=nil || updateForGen.RowsAffected<1 || updateForAdm.RowsAffected<1{
+				return errors.New("update err")
+			}
+			return nil
+		})
 	}else if generateId.UserType == types.Student{
-		utils.Db.Model(&generateId).Update("is_del",1)
-		utils.Db.Model(&types.TStudent{}).Where("user_id = ?",generateId.ID).Update("is_del",1)
+		errForDel = utils.Db.Transaction(func(tx *gorm.DB) error {
+			updateForGen := utils.Db.Model(&generateId).Update("is_del",1)
+			updateForStu := utils.Db.Model(&types.TStudent{}).Where("user_id = ?",generateId.ID).Update("is_del",1)
+			if updateForGen.Error!=nil || updateForStu.Error!=nil || updateForGen.RowsAffected<1 || updateForStu.RowsAffected<1{
+				return errors.New("update err")
+			}
+			return nil
+		})
 	}else if generateId.UserType == types.Teacher{
-		utils.Db.Model(&generateId).Update("is_del",1)
-		utils.Db.Model(&types.TTeacher{}).Where("user_id = ?",generateId.ID).Update("is_del",1)
+		errForDel = utils.Db.Transaction(func(tx *gorm.DB) error {
+			updateForGen := utils.Db.Model(&generateId).Update("is_del",1)
+			updateForTea := utils.Db.Model(&types.TTeacher{}).Where("user_id = ?",generateId.ID).Update("is_del",1)
+			if updateForGen.Error!=nil || updateForTea.Error!=nil || updateForGen.RowsAffected<1 || updateForTea.RowsAffected<1{
+				return errors.New("update err")
+			}
+			return nil
+		})
 	}
-	res.Code=types.OK
+
+	if errForDel != nil{
+		res.Code=types.UnknownError
+	}else{
+		res.Code=types.OK
+	}
 	c.JSON(http.StatusOK,res)
 }
 

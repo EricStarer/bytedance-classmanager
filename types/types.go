@@ -74,6 +74,7 @@ type TTeacher struct {
 type GenerateId struct {
 	ID       uint64 `gorm:"primaryKey"`
 	UserName string `gorm:"column:user_name;unique"`
+	Nickname string   `gorm:"column:nick_name"`
 	UserType UserType
 	IsDel    int `gorm:"default:0"`
 }
@@ -92,11 +93,6 @@ type TCourse struct {
 	TeacherID string
 }
 
-type TCourseCrush struct {
-	ID int `gorm:"primaryKey"`
-	Uid string `gorm:"unique"`
-}
-
 //数据库字段和requeset的请求中（types.go）中相对应
 /*type course struct {
 	ID        string `json:"CourseID"gorm:"primaryKey"`
@@ -111,6 +107,12 @@ type Course struct {
 	NAME      string `json:"Name"`
 	CAP       int    `json:"Cap"`
 	TeacherId string `json:"TeacherID"`
+}
+
+type TCourseCrush struct {
+	ID int `gorm:"primaryKey"`
+	Uid string `gorm:"unique"`
+
 }
 
 type TCourseCwc struct {
