@@ -92,6 +92,11 @@ type TCourse struct {
 	TeacherID string
 }
 
+type TCourseCrush struct {
+	ID int `gorm:"primaryKey"`
+	Uid string `gorm:"unique"`
+}
+
 //数据库字段和requeset的请求中（types.go）中相对应
 /*type course struct {
 	ID        string `json:"CourseID"gorm:"primaryKey"`

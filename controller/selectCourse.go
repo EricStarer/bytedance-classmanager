@@ -45,13 +45,11 @@ func SelectCourseBookCourse(c *gin.Context)  {
 	}
 
 	//step3 限制请求发起过于频繁,已经抢过该课程的学生直接返回 下面业务也已经处理这种情况,此处是针对抢客提速的特殊设计
-	hasComeIn, _ := myRedis.RedisService.Exists(requestParams.StudentID + "*" + requestParams.CourseID).Result()
-	if hasComeIn == 1{
+	if 	hasComeIn, _ := myRedis.RedisService.SetNX(requestParams.StudentID + "*" + requestParams.CourseID,1,myRedis.RedisTimeOutForTemplate).Result(); !hasComeIn {
 		res.Code=types.RepetitiveSubmit
 		c.JSON(http.StatusOK,res)
 		return
 	}
-	myRedis.RedisService.Set(requestParams.StudentID+"*"+requestParams.CourseID,1,myRedis.RedisTimeOutForTemplate)
 
 	//step4 判断学生是否合理(根据不同情况设置了黑名单,减少查表消耗性能)
 	if hasDelStudent, _ := myRedis.RedisService.Exists("SD" + requestParams.StudentID).Result(); hasDelStudent == 1{
@@ -83,22 +81,23 @@ func SelectCourseBookCourse(c *gin.Context)  {
 		myRedis.RedisService.Set("S"+requestParams.StudentID,1,myRedis.RedisTimeOutForKeep)
 	}
 
-	//step5 判断课程是否存在(利用redis减轻压力)
+	//step5 判断课程是否存在(利用redis减轻压力,利用setNx确保只有一个进入到查找库存,保证数据一致性)
 	var tCourse types.Course
 	tCourse.ID=cid
-	_, errSid = myRedis.RedisService.Get(requestParams.CourseID).Result()
-	if errSid != nil{
+	if 	result, _ := myRedis.RedisService.Exists(requestParams.CourseID).Result(); result!=1  {
 		firstForCourse := utils.Db.First(&tCourse)
 		if firstForCourse.Error!=nil{
+			//对不存在的课程余量暂设为0
+			myRedis.RedisService.Set(requestParams.CourseID,0,myRedis.RedisTimeOutForKeep)
 			res.Code=types.CourseNotExisted
 			c.JSON(http.StatusOK,res)
 			return
 		}
-		myRedis.RedisService.Set(strconv.Itoa(tCourse.ID),tCourse.CAP,myRedis.RedisTimeOutForKeep)
+		myRedis.RedisService.SetNX(requestParams.CourseID,tCourse.CAP,myRedis.RedisTimeOutForKeep)
 	}
 
 	//step6 利用redis实时监控课程容量
-	if myRedis.RedisService.Decr(requestParams.CourseID).Val()<0{
+	if myRedis.RedisService.Decr(requestParams.CourseID).Val() <0 {
 		myRedis.RedisService.Incr(requestParams.CourseID)
 		if _, ok := myRedis.CourseCapacityMap.Load(requestParams.CourseID); !ok{
 			myRedis.CourseCapacityMap.Store(requestParams.CourseID, true)
@@ -108,32 +107,41 @@ func SelectCourseBookCourse(c *gin.Context)  {
 		return
 	}
 
-	//step7 进入抢客流程此处用事务写
-	var updateRaw int64
-	errUpdate := utils.Db.Transaction(func(tx *gorm.DB) error {
-		recordLike := "%`"+requestParams.CourseID+"`%"
-		record := "`"+requestParams.CourseID+"`;"
-		errForCourse := tx.Model(&tCourse).Where("cap > ? ", 0).UpdateColumn("cap", gorm.Expr("cap - ?", 1))
 
-		updateRaw=errForCourse.RowsAffected
-		if errForCourse.RowsAffected<1{
-			return nil
-		}
-		if errForCourse.Error !=nil {
+
+	//step7 进入抢客流程此处用事务写
+	errUpdate := utils.Db.Transaction(func(tx *gorm.DB) error {
+		//先减容量,确保有容量
+		errForCourse := tx.Model(&tCourse).Where("cap > ? ", 0).UpdateColumn("cap", gorm.Expr("cap - ?", 1))
+		if errForCourse.Error !=nil || errForCourse.RowsAffected<1{
 			return errors.New(myRedis.ErrorForUpdateStore)
 		}
 
-		errForStudent := tx.Exec("UPDATE t_student SET course_record_id = CONCAT(course_record_id,?) WHERE user_id = ? and course_record_id not like ?",record,requestParams.StudentID,recordLike)
-		//errForStudent := tx.Model(&student).Where("course_record_id not like ? ",recordLike).Update("course_record_id",student.CourseRecordId+"`"+requestParams.CourseID+"`;")
+		//再进防冲撞表确保,数据可写入
+		var tCrush types.TCourseCrush
+		tCrush.Uid=requestParams.StudentID+"."+requestParams.CourseID
+		errForCrush  := tx.Create(&tCrush)
+		if errForCrush.Error !=nil{
+			return errors.New(myRedis.ErrorForUpdateRecord)
+		}
 
+		record := "`"+requestParams.CourseID+"`;"
+		errForStudent := tx.Exec("UPDATE t_student SET course_record_id = CONCAT(course_record_id,?) WHERE user_id = ?",record,requestParams.StudentID)
 		if errForStudent.Error !=nil || errForStudent.RowsAffected<1{
 			return errors.New(myRedis.ErrorForUpdateRecord)
 		}
 		return nil
 	})
 
+	if errUpdate == nil {
+		myRedis.RedisService.Set(requestParams.StudentID+"->"+requestParams.CourseID, 1, myRedis.RedisTimeOutForKeep)
+		res.Code = types.OK
+		c.JSON(http.StatusOK, res)
+		return
+	}
+
 	//更新失败
-	if errUpdate != nil && errUpdate.Error() == myRedis.ErrorForUpdateStore {
+	if errUpdate.Error() == myRedis.ErrorForUpdateStore {
 		myRedis.RedisService.Incr(requestParams.CourseID)
 		if _, ok := myRedis.CourseCapacityMap.Load(requestParams.CourseID);ok{
 			myRedis.CourseCapacityMap.Delete(requestParams.CourseID)
@@ -144,7 +152,7 @@ func SelectCourseBookCourse(c *gin.Context)  {
 	}
 
 	//已抢到
-	if errUpdate != nil && errUpdate.Error() == myRedis.ErrorForUpdateRecord{
+	if errUpdate.Error() == myRedis.ErrorForUpdateRecord{
 		myRedis.RedisService.Incr(requestParams.CourseID)
 		if _, ok := myRedis.CourseCapacityMap.Load(requestParams.CourseID);ok{
 			myRedis.CourseCapacityMap.Delete(requestParams.CourseID)
@@ -154,19 +162,7 @@ func SelectCourseBookCourse(c *gin.Context)  {
 		return
 	}
 
-	//课已满
-	if updateRaw<1 {
-		if _,ok := myRedis.CourseCapacityMap.Load(requestParams.CourseID);!ok{
-			myRedis.CourseCapacityMap.Store(requestParams.CourseID,true)
-		}
-		res.Code=types.CourseNotAvailable
-		c.JSON(http.StatusOK,res)
-	}
 
-	myRedis.RedisService.Set(requestParams.StudentID+"->"+requestParams.CourseID,1,myRedis.RedisTimeOutForKeep)
-	res.Code=types.OK
-	c.JSON(http.StatusOK,res)
-	return
 }
 
 //处理抢客功能的course请求
